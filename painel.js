@@ -131,6 +131,10 @@
     const completedLayer = document.getElementById("completedLayer");
     const mapCheckpoints = document.getElementById("mapCheckpoints");
     const mapGuards = document.getElementById("mapGuards");
+    const overviewGoogleMapFrame = document.getElementById("overviewGoogleMapFrame");
+    const overviewCondoName = document.getElementById("overviewCondoName");
+    const overviewCondoStatus = document.getElementById("overviewCondoStatus");
+    const overviewCondoAddress = document.getElementById("overviewCondoAddress");
     const activeTable = document.getElementById("activeTable");
     const checkpointHistoryEl = document.getElementById("checkpointHistory");
     const adminCondoList = document.getElementById("adminCondoList");
@@ -293,6 +297,7 @@
     }
 
     function renderMap() {
+      updateOverviewCondoMap();
       plannedLayer.replaceChildren();
       completedLayer.replaceChildren();
       mapCheckpoints.replaceChildren();
@@ -319,6 +324,22 @@
         const point = pointAt(route, moved);
         mapGuards.appendChild(svg("circle", { class: "guard-dot", cx: point.x, cy: point.y, r: 8, fill: guard.color }));
       });
+    }
+
+    function updateOverviewCondoMap() {
+      const condo = activeCondo();
+      if (!condo) return;
+      const zoom = condo.googleMapZoom || "18";
+      const mapType = condo.googleMapType || "k";
+      const lat = normalizeCoordinate(condo.googleAreaLat);
+      const lng = normalizeCoordinate(condo.googleAreaLng);
+      const addressQuery = [condo.address, condo.city, condo.state, "Brasil"].filter(Boolean).join(", ");
+      const query = lat && lng ? `${lat},${lng}` : addressQuery || "Brasil";
+      const encoded = encodeURIComponent(query);
+      overviewGoogleMapFrame.src = `https://www.google.com/maps?q=${encoded}&t=${mapType}&z=${zoom}&output=embed`;
+      overviewCondoName.textContent = condo.name || "Condomínio";
+      overviewCondoStatus.textContent = deviceStatus(condo);
+      overviewCondoAddress.textContent = [condo.address, condo.city, condo.state].filter(Boolean).join(" • ") || "Endereço não informado";
     }
 
     function renderTable() {
