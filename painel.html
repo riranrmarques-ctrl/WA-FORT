@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WA FORT Monitoramento</title>
-    <link rel="stylesheet" href="./painel.css?v=3" />
+    <title>Safeway Monitoramento</title>
+    <link rel="stylesheet" href="./painel.css?v=1" />
   </head>
   <body>
     <div class="app-shell">
@@ -12,7 +12,7 @@
         <div class="brand">
           <div class="brand-shield">◇</div>
           <div>
-            <strong>WA FORT</strong>
+            <strong>SAFEWAY</strong>
             <span>MONITORAMENTO</span>
           </div>
         </div>
@@ -239,11 +239,10 @@
                   <span>⌕</span>
                   <input id="adminSearch" type="search" placeholder="Buscar condomínio..." />
                 </label>
-                <select id="statusFilter" aria-label="Filtrar por status">
+                <select id="statusFilter" aria-label="Filtrar por vínculo de dispositivo">
                   <option value="Todos">Todos</option>
-                  <option value="Online">Online</option>
-                  <option value="Em atenção">Em atenção</option>
-                  <option value="Offline">Offline</option>
+                  <option value="Com dispositivo">Com dispositivo</option>
+                  <option value="Sem dispositivo">Sem dispositivo</option>
                 </select>
               </div>
               <div class="admin-condo-list" id="adminCondoList"></div>
@@ -254,7 +253,7 @@
                 <div class="editor-title">
                   <div>
                     <h2 id="formTitle">Novo Condomínio</h2>
-                    <p id="formSubtitle">Preencha os dados principais e marque a posição no mapa.</p>
+                    <p id="formSubtitle">Preencha os dados principais e adicione a imagem do condomínio.</p>
                   </div>
                   <button class="ghost-button" type="button" id="resetFormButton">Limpar</button>
                 </div>
@@ -263,14 +262,6 @@
                   <label>
                     Nome do condomínio
                     <input id="condoName" name="name" required placeholder="Residencial Alpha" />
-                  </label>
-                  <label>
-                    Status
-                    <select id="condoStatus" name="status">
-                      <option>Online</option>
-                      <option>Em atenção</option>
-                      <option>Offline</option>
-                    </select>
                   </label>
                   <label class="wide-field">
                     Endereço
@@ -284,35 +275,34 @@
                     Estado
                     <input id="condoState" name="state" maxlength="2" placeholder="UF" />
                   </label>
-                  <label>
-                    Vigilantes ativos
-                    <input id="condoGuards" name="guardsCount" type="number" min="0" value="0" />
-                  </label>
-                  <label>
-                    Latitude
-                    <input id="condoLat" name="lat" inputmode="decimal" placeholder="-23.550520" />
-                  </label>
-                  <label>
-                    Longitude
-                    <input id="condoLng" name="lng" inputmode="decimal" placeholder="-46.633308" />
-                  </label>
                   <label class="wide-field">
                     Observações
                     <textarea id="condoNotes" name="notes" rows="3" placeholder="Pontos de atenção, acessos, regras do condomínio..."></textarea>
                   </label>
                 </div>
 
-                <div class="location-picker">
+                <div class="media-grid">
                   <div>
-                    <h3>Localização do condomínio</h3>
-                    <p>Clique no mapa para marcar a posição base. Depois ligamos isso ao mapa real por endereço/GPS.</p>
+                    <h3>Imagem do condomínio</h3>
+                    <p>Envie uma imagem da fachada, portaria, mapa interno ou referência visual do local.</p>
+                    <label class="upload-box" for="condoImage">
+                      <input id="condoImage" type="file" accept="image/*" />
+                      <span>Selecionar imagem</span>
+                    </label>
+                    <button class="ghost-button" type="button" id="removeImageButton">Remover imagem</button>
                   </div>
-                  <div class="picker-map" id="pickerMap" role="button" tabindex="0" aria-label="Mapa para marcar localização">
-                    <div class="picker-grid"></div>
-                    <span class="picker-pin" id="pickerPin"></span>
-                    <strong>Norte</strong>
-                    <small>Sul</small>
+                  <div class="image-preview" id="imagePreview">
+                    <span>Sem imagem cadastrada</span>
                   </div>
+                </div>
+
+                <div class="google-map-block">
+                  <div>
+                    <h3>Imagem real pelo Google</h3>
+                    <p>O mapa abaixo usa o endereço cadastrado. Para Street View/foto automática do prédio, vamos precisar de uma chave da API do Google.</p>
+                  </div>
+                  <iframe id="googleMapFrame" title="Mapa Google do condomínio" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                  <a id="googleMapLink" href="https://www.google.com/maps" target="_blank" rel="noreferrer">Abrir no Google Maps</a>
                 </div>
 
                 <div class="form-actions">
@@ -326,6 +316,6 @@
       </main>
     </div>
 
-    <script src="./painel.js?v=3"></script>
+    <script src="./painel.js?v=1"></script>
   </body>
 </html>
