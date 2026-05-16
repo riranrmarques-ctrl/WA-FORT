@@ -661,15 +661,23 @@ h1 {
   font-weight: 800;
 }
 
+.coordinate-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.coordinate-grid label,
 .map-link-field {
   display: grid;
   gap: 7px;
-  margin-top: 14px;
   color: #c7d5e4;
   font-size: 13px;
   font-weight: 700;
 }
 
+.coordinate-grid input,
 .map-link-field input {
   width: 100%;
   min-height: 44px;
@@ -1352,7 +1360,8 @@ h1 {
     grid-column: auto;
   }
 
-  .map-options {
+  .map-options,
+  .coordinate-grid {
     grid-template-columns: 1fr;
   }
 
