@@ -630,7 +630,12 @@
       const lat = normalizeCoordinate(selected.googleAreaLat);
       const lng = normalizeCoordinate(selected.googleAreaLng);
       const hasCoordinates = lat && lng;
-      const query = hasCoordinates ? `${lat},${lng}` : addressQuery || "Brasil";
+      if (!hasCoordinates && !addressQuery) {
+        googleMapFrame.removeAttribute("src");
+        googleMapLink.href = "https://www.google.com/maps";
+        return;
+      }
+      const query = hasCoordinates ? `${lat},${lng}` : addressQuery;
       const encoded = encodeURIComponent(query);
       googleMapFrame.src = `https://www.google.com/maps?q=${encoded}&t=${mapType}&z=${zoom}&output=embed`;
       googleMapLink.href = hasCoordinates
