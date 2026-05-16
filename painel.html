@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Safeway Monitoramento</title>
-    <link rel="stylesheet" href="./painel.css?v=3" />
+    <link rel="stylesheet" href="./painel.css?v=4" />
   </head>
   <body>
     <div class="app-shell">
@@ -126,13 +126,14 @@
           <section class="map-panel panel">
             <div class="map-header">
               <div>
-                <h2>Residencial Alpha <span>Online</span></h2>
-                <p>4 vigilantes ativos</p>
+                <h2><span id="overviewCondoName">Residencial Alpha</span> <span id="overviewCondoStatus">Online</span></h2>
+                <p id="overviewCondoAddress">4 vigilantes ativos</p>
               </div>
               <button type="button">Ações <span>⌄</span></button>
             </div>
 
             <div class="map-canvas" aria-label="Mapa operacional do condomínio">
+              <iframe id="overviewGoogleMapFrame" class="overview-google-map" title="Mapa real do condomínio" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
               <svg viewBox="0 0 940 520" role="img" aria-label="Mapa com rota de vigilantes">
                 <defs>
                   <linearGradient id="water" x1="0" x2="1">
@@ -347,6 +348,6 @@
       </main>
     </div>
 
-    <script src="./painel.js?v=3"></script>
+    <script src="./painel.js?v=4"></script>
   </body>
 </html>
