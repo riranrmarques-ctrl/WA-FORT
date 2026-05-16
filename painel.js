@@ -82,7 +82,7 @@
       },
     ];
 
-    const route = [
+    const defaultRoute = [
       [90, 405],
       [90, 340],
       [165, 320],
@@ -131,6 +131,7 @@
     const completedLayer = document.getElementById("completedLayer");
     const mapCheckpoints = document.getElementById("mapCheckpoints");
     const mapGuards = document.getElementById("mapGuards");
+    const mapCanvas = document.querySelector(".map-canvas");
     const overviewGoogleMapFrame = document.getElementById("overviewGoogleMapFrame");
     const overviewCondoName = document.getElementById("overviewCondoName");
     const overviewCondoStatus = document.getElementById("overviewCondoStatus");
@@ -152,7 +153,12 @@
     const googleMapZoom = document.getElementById("googleMapZoom");
     const applyGoogleAreaButton = document.getElementById("applyGoogleAreaButton");
     const deleteCondoButton = document.getElementById("deleteCondoButton");
+    const editRouteButton = document.getElementById("editRouteButton");
+    const saveRouteButton = document.getElementById("saveRouteButton");
+    const clearRouteButton = document.getElementById("clearRouteButton");
     let currentImage = "";
+    let routeEditing = false;
+    let draftRoute = [];
 
     function svg(tag, attrs = {}) {
       const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
@@ -211,6 +217,7 @@
         googleAreaLng: condo.googleAreaLng || condo.lng || "",
         googleMapType: condo.googleMapType || "k",
         googleMapZoom: condo.googleMapZoom || "18",
+        patrolRoute: Array.isArray(condo.patrolRoute) ? condo.patrolRoute : [],
         notes: condo.notes || "",
       };
     }
@@ -302,28 +309,76 @@
       completedLayer.replaceChildren();
       mapCheckpoints.replaceChildren();
       mapGuards.replaceChildren();
+      const activeRoute = getActiveRoute();
 
-      completedLayer.appendChild(svg("path", { class: "route-shadow", d: pathFrom(route) }));
-      plannedLayer.appendChild(svg("path", { class: "route-planned", d: pathFrom(route) }));
-      completedLayer.appendChild(svg("path", { class: "route-completed", d: partialPath(route, 0.75 + Math.sin(tick / 5) * 0.02) }));
+      if (activeRoute.length > 1) {
+        completedLayer.appendChild(svg("path", { class: "route-shadow", d: pathFrom(activeRoute) }));
+        plannedLayer.appendChild(svg("path", { class: "route-planned", d: pathFrom(activeRoute) }));
+        completedLayer.appendChild(svg("path", { class: "route-completed", d: partialPath(activeRoute, 0.75 + Math.sin(tick / 5) * 0.02) }));
+      }
 
-      [
-        { number: "01", x: 525, y: 160, color: colors.blue },
-        { number: "02", x: 78, y: 342, color: colors.green },
-        { number: "03", x: 398, y: 332, color: colors.violet },
-        { number: "04", x: 792, y: 325, color: colors.amber },
-      ].forEach((point) => {
-        mapCheckpoints.appendChild(svg("circle", { class: "map-point", cx: point.x, cy: point.y, r: 20, fill: point.color }));
-        const label = svg("text", { class: "map-label", x: point.x, y: point.y + 1 });
-        label.textContent = point.number;
+      activeRoute.forEach(([x, y], index) => {
+        const pointColor = [colors.blue, colors.green, colors.violet, colors.amber][index % 4];
+        mapCheckpoints.appendChild(svg("circle", { class: "checkpoint-ring", cx: x, cy: y, r: 18, fill: pointColor }));
+        const label = svg("text", { class: "map-label", x, y: y + 1 });
+        label.textContent = String(index + 1).padStart(2, "0");
         mapCheckpoints.appendChild(label);
       });
 
       guards.forEach((guard) => {
+        if (activeRoute.length < 2) return;
         const moved = guard.routeOffset + Math.sin((tick + Number(guard.number)) / 8) * 0.005;
-        const point = pointAt(route, moved);
+        const point = pointAt(activeRoute, moved);
         mapGuards.appendChild(svg("circle", { class: "guard-dot", cx: point.x, cy: point.y, r: 8, fill: guard.color }));
       });
+    }
+
+    function getActiveRoute() {
+      if (routeEditing) return draftRoute;
+      const condo = activeCondo();
+      return condo?.patrolRoute?.length ? condo.patrolRoute : defaultRoute;
+    }
+
+    function startRouteEditing() {
+      routeEditing = !routeEditing;
+      const condo = activeCondo();
+      draftRoute = condo?.patrolRoute?.length ? condo.patrolRoute.map((point) => [...point]) : defaultRoute.map((point) => [...point]);
+      mapCanvas.classList.toggle("editing", routeEditing);
+      editRouteButton.classList.toggle("active", routeEditing);
+      editRouteButton.textContent = routeEditing ? "Editando..." : "Editar rota";
+      renderMap();
+    }
+
+    function saveRoute() {
+      const condo = activeCondo();
+      if (!condo || draftRoute.length < 2) return;
+      condo.patrolRoute = draftRoute.map(([x, y]) => [Math.round(x), Math.round(y)]);
+      routeEditing = false;
+      mapCanvas.classList.remove("editing");
+      editRouteButton.classList.remove("active");
+      editRouteButton.textContent = "Editar rota";
+      saveCondominiums();
+      renderMap();
+    }
+
+    function clearRoute() {
+      draftRoute = [];
+      const condo = activeCondo();
+      if (!routeEditing && condo) {
+        condo.patrolRoute = [];
+        saveCondominiums();
+      }
+      renderMap();
+    }
+
+    function addRoutePoint(event) {
+      if (!routeEditing) return;
+      if (event.target.closest(".map-controls, .map-badge, .route-editor-hint")) return;
+      const rect = mapCanvas.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width) * 940;
+      const y = ((event.clientY - rect.top) / rect.height) * 520;
+      draftRoute.push([Math.max(0, Math.min(940, x)), Math.max(0, Math.min(520, y))]);
+      renderMap();
     }
 
     function updateOverviewCondoMap() {
@@ -443,6 +498,7 @@
         googleAreaLng: formValue("googleAreaLng"),
         googleMapType: formValue("googleMapType") || "k",
         googleMapZoom: formValue("googleMapZoom") || "18",
+        patrolRoute: condominiums.find((condo) => condo.id === selectedCondoId)?.patrolRoute || [],
         notes: formValue("condoNotes"),
       };
 
@@ -567,6 +623,10 @@
     googleAreaLng.addEventListener("change", () => updateGoogleMap(null));
     googleMapType.addEventListener("change", () => updateGoogleMap(null));
     googleMapZoom.addEventListener("change", () => updateGoogleMap(null));
+    editRouteButton.addEventListener("click", startRouteEditing);
+    saveRouteButton.addEventListener("click", saveRoute);
+    clearRouteButton.addEventListener("click", clearRoute);
+    mapCanvas.addEventListener("click", addRoutePoint);
 
     renderAllCondos();
     renderTable();
