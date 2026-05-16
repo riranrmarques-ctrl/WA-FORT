@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Safeway Monitoramento</title>
-    <link rel="stylesheet" href="painel.css?v=12" />
+    <link rel="stylesheet" href="painel.css?v=14" />
   </head>
   <body>
     <div class="app-shell">
@@ -36,7 +36,7 @@
 
         <div class="last-update">
           <span>Última atualização</span>
-          <strong id="sidebarClock">09:42:15</strong>
+          <strong id="sidebarClock">00:00:00</strong>
           <small>Atualizando em tempo real <i></i></small>
         </div>
       </aside>
@@ -49,7 +49,7 @@
           </div>
 
           <div class="operator">
-            <button class="bell" type="button" title="Notificações">♧<b>12</b></button>
+            <button class="bell" type="button" title="Notificações">♧<b>0</b></button>
             <div class="operator-photo"></div>
             <div>
               <strong>Supervisor</strong>
@@ -65,7 +65,7 @@
             <div class="metric-icon blue">▥</div>
             <div>
               <span>Condomínios</span>
-              <strong>12</strong>
+              <strong>0</strong>
               <small>Todos os condomínios</small>
             </div>
           </article>
@@ -73,7 +73,7 @@
             <div class="metric-icon green">⬡</div>
             <div>
               <span>Vigilantes Ativos</span>
-              <strong id="activeGuardsMetric">28</strong>
+              <strong id="activeGuardsMetric">0</strong>
               <small>Em atividade agora</small>
             </div>
             <svg class="spark" viewBox="0 0 110 32"><path d="M2 24 L12 20 L20 22 L28 12 L38 18 L48 9 L58 16 L68 8 L78 14 L88 6 L98 18 L108 12" /></svg>
@@ -82,7 +82,7 @@
             <div class="metric-icon amber">⌘</div>
             <div>
               <span>Rotas em Andamento</span>
-              <strong>28</strong>
+              <strong id="activeRoutesMetric">0</strong>
               <small>Percursos ativos</small>
             </div>
             <svg class="spark amber-line" viewBox="0 0 110 32"><path d="M2 18 L12 18 L22 15 L32 20 L42 16 L52 18 L62 14 L72 17 L82 11 L92 19 L108 15" /></svg>
@@ -91,7 +91,7 @@
             <div class="metric-icon violet">▣</div>
             <div>
               <span>Rotas Concluídas Hoje</span>
-              <strong id="finishedRoutesMetric">156</strong>
+              <strong id="finishedRoutesMetric">0</strong>
               <small>Até o momento</small>
             </div>
             <svg class="spark" viewBox="0 0 110 32"><path d="M2 22 L14 18 L26 20 L38 16 L50 18 L62 13 L74 15 L86 9 L98 16 L108 10" /></svg>
@@ -100,7 +100,7 @@
             <div class="metric-icon red">△</div>
             <div>
               <span>Ocorrências Abertas</span>
-              <strong>2</strong>
+              <strong id="openOccurrencesMetric">0</strong>
               <small>Requer atenção</small>
             </div>
             <svg class="spark red-line" viewBox="0 0 110 32"><path d="M2 20 L12 18 L22 22 L32 13 L42 17 L52 12 L62 16 L72 9 L82 18 L92 14 L108 19" /></svg>
@@ -126,8 +126,8 @@
           <section class="map-panel panel">
             <div class="map-header">
               <div>
-                <h2><span id="overviewCondoName">Residencial Alpha</span> <span id="overviewCondoStatus">Online</span></h2>
-                <p id="overviewCondoAddress">4 vigilantes ativos</p>
+                <h2><span id="overviewCondoName">Nenhum condomínio cadastrado</span> <span id="overviewCondoStatus">Sem dispositivo</span></h2>
+                <p id="overviewCondoAddress">Cadastre um condomínio para iniciar o monitoramento.</p>
               </div>
             </div>
 
@@ -157,12 +157,7 @@
                 <g id="mapGuards"></g>
               </svg>
 
-              <div class="map-controls">
-                <button type="button">+</button>
-                <button type="button">−</button>
-                <button type="button">⌖</button>
-              </div>
-              <div class="map-badge">⌂ Portaria</div>
+              <div class="map-badge">⌂ Sem portaria definida</div>
             </div>
 
             <div class="map-legend">
@@ -187,24 +182,24 @@
             <div class="guard-profile">
               <div class="profile-number">01</div>
               <div>
-                <strong>Carlos Eduardo</strong>
-                <span>Em Patrulha</span>
-                <small>Início da ronda: 09:15:00</small>
+                <strong>Nenhum vigilante vinculado</strong>
+                <span>Aguardando cadastro</span>
+                <small>Início da ronda: --:--</small>
               </div>
             </div>
 
             <section class="detail-section">
               <h3>Percurso Atual</h3>
-              <p>Bloco A → Área de Lazer</p>
+              <p>Nenhum percurso em andamento</p>
               <div class="progress-label">
                 <span>Progresso do percurso</span>
-                <strong id="detailProgressText">75%</strong>
+                <strong id="detailProgressText">0%</strong>
               </div>
               <div class="progress-track"><i id="detailProgressBar"></i></div>
               <div class="next-stop">
                 <span>Próximo ponto de controle</span>
-                <strong>Salão de Festas</strong>
-                <time>09:45</time>
+                <strong>Nenhum ponto definido</strong>
+                <time>--:--</time>
               </div>
             </section>
 
@@ -261,7 +256,7 @@
                 <div class="form-grid">
                   <label>
                     Nome do condomínio
-                    <input id="condoName" name="name" required placeholder="Residencial Alpha" />
+                    <input id="condoName" name="name" required placeholder="Nome do condomínio" />
                   </label>
                   <label class="wide-field">
                     Endereço
@@ -380,6 +375,6 @@
       </main>
     </div>
 
-    <script src="painel.js?v=12"></script>
+    <script src="painel.js?v=14"></script>
   </body>
 </html>
