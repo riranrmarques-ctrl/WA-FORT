@@ -1017,8 +1017,8 @@ h1 {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: 28px;
-  padding: 0 9px;
+  min-height: 32px;
+  padding: 3px 5px 3px 9px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: #0a1724;
@@ -1029,6 +1029,29 @@ h1 {
 
 .route-point-item b {
   color: #8fc0ff;
+}
+
+.route-point-item span {
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.route-point-item button {
+  min-height: 24px;
+  padding: 0 9px;
+  border: 1px solid rgba(18, 104, 255, 0.6);
+  border-radius: 999px;
+  background: rgba(18, 104, 255, 0.2);
+  color: #cfe2ff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.route-point-item button:hover {
+  border-color: var(--blue);
+  background: rgba(18, 104, 255, 0.34);
 }
 
 .map-canvas {
