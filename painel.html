@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Safeway Monitoramento</title>
-    <link rel="stylesheet" href="painel.css" />
+    <link rel="stylesheet" href="painel.css?v=8" />
   </head>
   <body>
     <div class="app-shell">
@@ -136,9 +136,25 @@
               </div>
             </div>
 
+            <div class="route-coordinate-panel" id="routeCoordinatePanel">
+              <label>
+                Nome do ponto
+                <input id="routePointName" placeholder="Portaria, Bloco A, Piscina..." />
+              </label>
+              <label>
+                Latitude
+                <input id="routePointLat" inputmode="decimal" placeholder="-15.022387" />
+              </label>
+              <label>
+                Longitude
+                <input id="routePointLng" inputmode="decimal" placeholder="-38.997905" />
+              </label>
+              <button type="button" id="addCoordinatePointButton">Adicionar ponto</button>
+            </div>
+
             <div class="map-canvas" aria-label="Mapa operacional do condomínio">
               <iframe id="overviewGoogleMapFrame" class="overview-google-map" title="Mapa real do condomínio" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-              <div class="route-editor-hint" id="routeEditorHint">Clique no mapa para marcar os pontos da ronda.</div>
+              <div class="route-editor-hint" id="routeEditorHint">Adicione os pontos por latitude e longitude para formar a rota real.</div>
               <svg viewBox="0 0 940 520" role="img" aria-label="Mapa com rota de vigilantes">
                 <defs>
                   <linearGradient id="water" x1="0" x2="1">
@@ -353,6 +369,6 @@
       </main>
     </div>
 
-    <script src="painel.js"></script>
+    <script src="painel.js?v=8"></script>
   </body>
 </html>
