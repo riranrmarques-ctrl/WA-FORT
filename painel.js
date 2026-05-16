@@ -433,24 +433,33 @@
       const centerLat = Number(normalizeCoordinate(condo?.googleAreaLat)) || Number(routeGeo[0]?.lat) || 0;
       const centerLng = Number(normalizeCoordinate(condo?.googleAreaLng)) || Number(routeGeo[0]?.lng) || 0;
       const zoom = Number(condo?.googleMapZoom || 18);
-      const metersPerPixel = 156543.03392 * Math.cos((centerLat * Math.PI) / 180) / Math.pow(2, zoom);
-      const scale = Math.max(0.2, metersPerPixel / 0.72);
+      const centerPixel = mercatorPixel(centerLat, centerLng, zoom);
+      const viewWidth = 940;
+      const viewHeight = 520;
       return routeGeo
         .map((point) => {
           const lat = Number(normalizeCoordinate(point.lat));
           const lng = Number(normalizeCoordinate(point.lng));
           if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-          const metersX = (lng - centerLng) * 111320 * Math.cos((centerLat * Math.PI) / 180);
-          const metersY = (centerLat - lat) * 110540;
+          const pixel = mercatorPixel(lat, lng, zoom);
           return {
-            x: Math.max(0, Math.min(940, 470 + metersX / scale)),
-            y: Math.max(0, Math.min(520, 260 + metersY / scale)),
+            x: Math.max(0, Math.min(viewWidth, viewWidth / 2 + (pixel.x - centerPixel.x))),
+            y: Math.max(0, Math.min(viewHeight, viewHeight / 2 + (pixel.y - centerPixel.y))),
             name: point.name || "",
             lat: String(point.lat),
             lng: String(point.lng),
           };
         })
         .filter(Boolean);
+    }
+
+    function mercatorPixel(lat, lng, zoom) {
+      const siny = Math.max(-0.9999, Math.min(0.9999, Math.sin((lat * Math.PI) / 180)));
+      const scale = 256 * Math.pow(2, zoom);
+      return {
+        x: ((lng + 180) / 360) * scale,
+        y: (0.5 - Math.log((1 + siny) / (1 - siny)) / (4 * Math.PI)) * scale,
+      };
     }
 
     function distanceMeters(a, b) {
