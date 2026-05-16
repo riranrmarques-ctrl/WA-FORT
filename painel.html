@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Safeway Monitoramento</title>
+    <link rel="stylesheet" href="./styles.css?v=3" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-shield">◇</div>
+          <div>
+            <strong>SAFEWAY</strong>
+            <span>MONITORAMENTO</span>
+          </div>
+        </div>
+
+        <nav class="nav-list" aria-label="Navegação principal">
+          <button class="nav-item active" type="button" data-view-button="overview"><span>⌂</span>Visão Geral</button>
+          <button class="nav-item" type="button" data-view-button="condominiums"><span>▥</span>Condomínios</button>
+          <button class="nav-item" type="button"><span>♙</span>Vigilantes</button>
+          <button class="nav-item" type="button"><span>△</span>Ocorrências</button>
+          <button class="nav-item" type="button"><span>▤</span>Relatórios</button>
+          <button class="nav-item" type="button"><span>◌</span>Alertas</button>
+          <button class="nav-item" type="button"><span>⚙</span>Configurações</button>
+        </nav>
+
+        <section class="quick-filters">
+          <h2>Filtros rápidos</h2>
+          <button type="button">Todos os condomínios <span>⌄</span></button>
+          <button type="button">Todos os turnos <span>⌄</span></button>
+          <button type="button">Todos os status <span>⌄</span></button>
+        </section>
+
+        <div class="last-update">
+          <span>Última atualização</span>
+          <strong id="sidebarClock">09:42:15</strong>
+          <small>Atualizando em tempo real <i></i></small>
+        </div>
+      </aside>
+
+      <main class="dashboard">
+        <header class="topbar">
+          <div>
+            <h1>Supervisão em Tempo Real</h1>
+            <p>Acompanhe em tempo real os condomínios e vigilantes ativos.</p>
+          </div>
+
+          <div class="operator">
+            <button class="bell" type="button" title="Notificações">♧<b>12</b></button>
+            <div class="operator-photo"></div>
+            <div>
+              <strong>Supervisor</strong>
+              <span>Central de Monitoramento</span>
+            </div>
+            <button class="chevron" type="button" title="Abrir perfil">⌄</button>
+          </div>
+        </header>
+
+        <div class="view active" id="overviewView">
+        <section class="summary-grid" aria-label="Resumo operacional">
+          <article class="metric-card">
+            <div class="metric-icon blue">▥</div>
+            <div>
+              <span>Condomínios</span>
+              <strong>12</strong>
+              <small>Todos os condomínios</small>
+            </div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon green">⬡</div>
+            <div>
+              <span>Vigilantes Ativos</span>
+              <strong id="activeGuardsMetric">28</strong>
+              <small>Em atividade agora</small>
+            </div>
+            <svg class="spark" viewBox="0 0 110 32"><path d="M2 24 L12 20 L20 22 L28 12 L38 18 L48 9 L58 16 L68 8 L78 14 L88 6 L98 18 L108 12" /></svg>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon amber">⌘</div>
+            <div>
+              <span>Rotas em Andamento</span>
+              <strong>28</strong>
+              <small>Percursos ativos</small>
+            </div>
+            <svg class="spark amber-line" viewBox="0 0 110 32"><path d="M2 18 L12 18 L22 15 L32 20 L42 16 L52 18 L62 14 L72 17 L82 11 L92 19 L108 15" /></svg>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon violet">▣</div>
+            <div>
+              <span>Rotas Concluídas Hoje</span>
+              <strong id="finishedRoutesMetric">156</strong>
+              <small>Até o momento</small>
+            </div>
+            <svg class="spark" viewBox="0 0 110 32"><path d="M2 22 L14 18 L26 20 L38 16 L50 18 L62 13 L74 15 L86 9 L98 16 L108 10" /></svg>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon red">△</div>
+            <div>
+              <span>Ocorrências Abertas</span>
+              <strong>2</strong>
+              <small>Requer atenção</small>
+            </div>
+            <svg class="spark red-line" viewBox="0 0 110 32"><path d="M2 20 L12 18 L22 22 L32 13 L42 17 L52 12 L62 16 L72 9 L82 18 L92 14 L108 19" /></svg>
+          </article>
+        </section>
+
+        <section class="operations-grid">
+          <aside class="condo-panel panel">
+            <div class="panel-title">
+              <h2>Condomínios</h2>
+            </div>
+            <div class="search-row">
+              <label>
+                <span>⌕</span>
+                <input type="search" placeholder="Buscar condomínio..." />
+              </label>
+              <button type="button" title="Filtrar">⌯</button>
+            </div>
+            <div class="condo-list" id="condoList"></div>
+            <button class="wide-button" type="button">Ver todos os condomínios</button>
+          </aside>
+
+          <section class="map-panel panel">
+            <div class="map-header">
+              <div>
+                <h2>Residencial Alpha <span>Online</span></h2>
+                <p>4 vigilantes ativos</p>
+              </div>
+              <button type="button">Ações <span>⌄</span></button>
+            </div>
+
+            <div class="map-canvas" aria-label="Mapa operacional do condomínio">
+              <svg viewBox="0 0 940 520" role="img" aria-label="Mapa com rota de vigilantes">
+                <defs>
+                  <linearGradient id="water" x1="0" x2="1">
+                    <stop offset="0%" stop-color="#0c2235" />
+                    <stop offset="100%" stop-color="#102d45" />
+                  </linearGradient>
+                </defs>
+                <rect width="940" height="520" fill="#091622" />
+                <path d="M30 395 C130 335 235 355 320 280 C420 190 520 245 620 170 C730 88 805 145 910 94 L910 520 L30 520 Z" fill="url(#water)" opacity=".64" />
+                <path class="street" d="M60 420 C210 350 335 350 465 298 C590 245 735 272 900 200" />
+                <path class="street narrow" d="M120 112 C220 150 315 98 420 132 C550 175 675 110 842 135" />
+                <path class="street narrow" d="M142 452 C270 410 365 430 500 400 C620 372 705 418 870 360" />
+
+                <polygon class="block" points="245,115 402,116 432,232 292,260 218,194" />
+                <polygon class="block" points="510,105 662,98 715,205 630,270 500,222" />
+                <polygon class="block" points="365,315 535,292 628,388 554,474 382,454" />
+                <polygon class="leisure" points="690,285 830,270 884,352 790,432 675,382" />
+
+                <g id="plannedLayer"></g>
+                <g id="completedLayer"></g>
+                <g id="mapCheckpoints"></g>
+                <g id="mapGuards"></g>
+              </svg>
+
+              <div class="map-controls">
+                <button type="button">+</button>
+                <button type="button">−</button>
+                <button type="button">⌖</button>
+              </div>
+              <div class="map-badge">⌂ Portaria</div>
+            </div>
+
+            <div class="map-legend">
+              <span><i class="online-dot"></i>Atualizado há <b id="mapAge">10</b> segundos</span>
+              <span><i class="line-solid"></i>Percurso realizado</span>
+              <span><i class="line-dashed"></i>Percurso planejado</span>
+              <span><i class="point-blue"></i>Ponto de controle</span>
+              <span><i class="point-green"></i>Vigilante</span>
+            </div>
+
+            <div class="active-table">
+              <h2>Vigilantes Ativos no Condomínio</h2>
+              <div class="table" id="activeTable"></div>
+              <button class="wide-button" type="button">Ver histórico de rotas do condomínio</button>
+            </div>
+          </section>
+
+          <aside class="details-panel panel">
+            <div class="panel-title">
+              <h2>Detalhes do Vigilante</h2>
+            </div>
+            <div class="guard-profile">
+              <div class="profile-number">01</div>
+              <div>
+                <strong>Carlos Eduardo</strong>
+                <span>Em Patrulha</span>
+                <small>Início da ronda: 09:15:00</small>
+              </div>
+            </div>
+
+            <section class="detail-section">
+              <h3>Percurso Atual</h3>
+              <p>Bloco A → Área de Lazer</p>
+              <div class="progress-label">
+                <span>Progresso do percurso</span>
+                <strong id="detailProgressText">75%</strong>
+              </div>
+              <div class="progress-track"><i id="detailProgressBar"></i></div>
+              <div class="next-stop">
+                <span>Próximo ponto de controle</span>
+                <strong>Salão de Festas</strong>
+                <time>09:45</time>
+              </div>
+            </section>
+
+            <section class="detail-section">
+              <h3>Últimos Pontos de Controle</h3>
+              <div class="checkpoint-list" id="checkpointHistory"></div>
+            </section>
+
+            <section class="detail-section">
+              <h3>Ações Rápidas</h3>
+              <button class="action-button message" type="button">☏ Enviar Mensagem</button>
+              <button class="action-button radio" type="button">◉ Chamar no Rádio</button>
+              <button class="action-button warning" type="button">△ Abrir Ocorrência</button>
+            </section>
+          </aside>
+        </section>
+        </div>
+
+        <section class="view admin-view" id="condominiumsView" aria-label="Administração de condomínios">
+          <div class="admin-heading">
+            <div>
+              <h2>Condomínios</h2>
+              <p>Cadastre condomínios, endereço, status e localização base para as próximas rotas.</p>
+            </div>
+            <button class="primary-button" type="button" id="newCondoButton">+ Novo Condomínio</button>
+          </div>
+
+          <div class="admin-grid">
+            <section class="panel admin-list-panel">
+              <div class="admin-tools">
+                <label>
+                  <span>⌕</span>
+                  <input id="adminSearch" type="search" placeholder="Buscar condomínio..." />
+                </label>
+                <select id="statusFilter" aria-label="Filtrar por status">
+                  <option value="Todos">Todos</option>
+                  <option value="Online">Online</option>
+                  <option value="Em atenção">Em atenção</option>
+                  <option value="Offline">Offline</option>
+                </select>
+              </div>
+              <div class="admin-condo-list" id="adminCondoList"></div>
+            </section>
+
+            <section class="panel condo-editor">
+              <form id="condoForm">
+                <div class="editor-title">
+                  <div>
+                    <h2 id="formTitle">Novo Condomínio</h2>
+                    <p id="formSubtitle">Preencha os dados principais e marque a posição no mapa.</p>
+                  </div>
+                  <button class="ghost-button" type="button" id="resetFormButton">Limpar</button>
+                </div>
+
+                <div class="form-grid">
+                  <label>
+                    Nome do condomínio
+                    <input id="condoName" name="name" required placeholder="Residencial Alpha" />
+                  </label>
+                  <label>
+                    Status
+                    <select id="condoStatus" name="status">
+                      <option>Online</option>
+                      <option>Em atenção</option>
+                      <option>Offline</option>
+                    </select>
+                  </label>
+                  <label class="wide-field">
+                    Endereço
+                    <input id="condoAddress" name="address" placeholder="Rua, número, bairro" />
+                  </label>
+                  <label>
+                    Cidade
+                    <input id="condoCity" name="city" placeholder="Cidade" />
+                  </label>
+                  <label>
+                    Estado
+                    <input id="condoState" name="state" maxlength="2" placeholder="UF" />
+                  </label>
+                  <label>
+                    Vigilantes ativos
+                    <input id="condoGuards" name="guardsCount" type="number" min="0" value="0" />
+                  </label>
+                  <label>
+                    Latitude
+                    <input id="condoLat" name="lat" inputmode="decimal" placeholder="-23.550520" />
+                  </label>
+                  <label>
+                    Longitude
+                    <input id="condoLng" name="lng" inputmode="decimal" placeholder="-46.633308" />
+                  </label>
+                  <label class="wide-field">
+                    Observações
+                    <textarea id="condoNotes" name="notes" rows="3" placeholder="Pontos de atenção, acessos, regras do condomínio..."></textarea>
+                  </label>
+                </div>
+
+                <div class="location-picker">
+                  <div>
+                    <h3>Localização do condomínio</h3>
+                    <p>Clique no mapa para marcar a posição base. Depois ligamos isso ao mapa real por endereço/GPS.</p>
+                  </div>
+                  <div class="picker-map" id="pickerMap" role="button" tabindex="0" aria-label="Mapa para marcar localização">
+                    <div class="picker-grid"></div>
+                    <span class="picker-pin" id="pickerPin"></span>
+                    <strong>Norte</strong>
+                    <small>Sul</small>
+                  </div>
+                </div>
+
+                <div class="form-actions">
+                  <button class="danger-button" type="button" id="deleteCondoButton">Excluir</button>
+                  <button class="primary-button" type="submit">Salvar Condomínio</button>
+                </div>
+              </form>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js?v=3"></script>
+  </body>
+</html>
