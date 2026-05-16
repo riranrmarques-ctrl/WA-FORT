@@ -1065,6 +1065,24 @@ h1 {
   cursor: crosshair;
 }
 
+.map-canvas.empty svg,
+.map-canvas.empty .map-badge {
+  display: none;
+}
+
+.map-canvas.empty::after {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: var(--muted);
+  content: "Cadastre um condomínio e defina as coordenadas para exibir o mapa.";
+  text-align: center;
+  font-weight: 800;
+}
+
 .overview-google-map {
   position: absolute;
   inset: 0;
@@ -1181,28 +1199,6 @@ h1 {
   font-weight: 900;
   text-anchor: middle;
   dominant-baseline: middle;
-}
-
-.map-controls {
-  position: absolute;
-  left: 18px;
-  bottom: 22px;
-  z-index: 2;
-  display: grid;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-
-.map-controls button {
-  width: 36px;
-  height: 34px;
-  border-bottom: 1px solid var(--line);
-  background: rgba(9, 22, 34, 0.92);
-}
-
-.map-controls button:last-child {
-  border-bottom: 0;
 }
 
 .map-badge {
