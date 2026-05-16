@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Safeway Monitoramento</title>
-    <link rel="stylesheet" href="./painel.css?v=2" />
+    <link rel="stylesheet" href="./painel.css?v=3" />
   </head>
   <body>
     <div class="app-shell">
@@ -299,11 +299,17 @@
                 <div class="google-map-block">
                   <div>
                     <h3>Área do condomínio no Google</h3>
-                    <p>Cole o link do Google Maps da área exata ou deixe vazio para usar o endereço. Use o zoom para aproximar no condomínio.</p>
-                    <label class="map-link-field">
-                      Link do Google Maps
-                      <input id="googleAreaLink" placeholder="Cole aqui o link do Google Maps" />
-                    </label>
+                    <p>Informe a latitude e longitude do ponto central do condomínio. Use o zoom para aproximar na área exata.</p>
+                    <div class="coordinate-grid">
+                      <label>
+                        Latitude
+                        <input id="googleAreaLat" inputmode="decimal" placeholder="-14.793000" />
+                      </label>
+                      <label>
+                        Longitude
+                        <input id="googleAreaLng" inputmode="decimal" placeholder="-39.033000" />
+                      </label>
+                    </div>
                     <div class="map-options">
                       <label>
                         Visual
@@ -324,7 +330,7 @@
                         </select>
                       </label>
                     </div>
-                    <button class="ghost-button" type="button" id="applyGoogleAreaButton">Aplicar área</button>
+                    <button class="ghost-button" type="button" id="applyGoogleAreaButton">Aplicar coordenadas</button>
                   </div>
                   <iframe id="googleMapFrame" title="Mapa Google do condomínio" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
                   <a id="googleMapLink" href="https://www.google.com/maps" target="_blank" rel="noreferrer">Abrir no Google Maps</a>
@@ -341,6 +347,6 @@
       </main>
     </div>
 
-    <script src="./painel.js?v=2"></script>
+    <script src="./painel.js?v=3"></script>
   </body>
 </html>
