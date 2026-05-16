@@ -8,79 +8,8 @@
       violet: "#6e63ff",
     };
 
-    const storageKey = "safeway.condominiums.v1";
-    const defaultCondos = [
-      {
-        id: "alpha",
-        name: "Residencial Alpha",
-        deviceLinked: true,
-        address: "Rua das Palmeiras, 120",
-        city: "São Paulo",
-        state: "SP",
-        image: "",
-        googleAreaLat: "",
-        googleAreaLng: "",
-        googleMapType: "k",
-        googleMapZoom: "18",
-        notes: "Condomínio piloto para ronda do perímetro externo.",
-      },
-      {
-        id: "belle-ville",
-        name: "Condomínio Belle Ville",
-        deviceLinked: true,
-        address: "Av. Central, 800",
-        city: "São Paulo",
-        state: "SP",
-        image: "",
-        googleAreaLat: "",
-        googleAreaLng: "",
-        googleMapType: "k",
-        googleMapZoom: "18",
-        notes: "",
-      },
-      {
-        id: "panorama",
-        name: "Edifício Panorama",
-        deviceLinked: true,
-        address: "Rua Bela Vista, 45",
-        city: "São Paulo",
-        state: "SP",
-        image: "",
-        googleAreaLat: "",
-        googleAreaLng: "",
-        googleMapType: "k",
-        googleMapZoom: "18",
-        notes: "",
-      },
-      {
-        id: "jardim-flores",
-        name: "Residencial Jardim das Flores",
-        deviceLinked: false,
-        address: "Alameda das Flores, 55",
-        city: "São Paulo",
-        state: "SP",
-        image: "",
-        googleAreaLat: "",
-        googleAreaLng: "",
-        googleMapType: "k",
-        googleMapZoom: "18",
-        notes: "Portão lateral exige conferência manual no turno noturno.",
-      },
-      {
-        id: "solar-aguas",
-        name: "Condomínio Solar das Águas",
-        deviceLinked: false,
-        address: "Rua das Águas, 410",
-        city: "São Paulo",
-        state: "SP",
-        image: "",
-        googleAreaLat: "",
-        googleAreaLng: "",
-        googleMapType: "k",
-        googleMapZoom: "18",
-        notes: "",
-      },
-    ];
+    const storageKey = "safeway.condominiums.v2";
+    const defaultCondos = [];
 
     const defaultRoute = [
       [90, 405],
@@ -105,22 +34,9 @@
       [90, 340],
     ];
 
-    const guards = [
-      { number: "01", name: "Carlos Eduardo", status: "Em Patrulha", path: "Bloco A → Área de Lazer", lastPoint: "09:42:01", progress: 75, color: colors.blue, routeOffset: 0.74 },
-      { number: "02", name: "Marcos Vinícius", status: "Em Patrulha", path: "Estacionamento → Bloco B", lastPoint: "09:41:58", progress: 60, color: colors.green, routeOffset: 0.93 },
-      { number: "03", name: "Rafael Almeida", status: "Em Patrulha", path: "Bloco C → Quadra", lastPoint: "09:42:05", progress: 45, color: colors.violet, routeOffset: 0.33 },
-      { number: "04", name: "José Ferreira", status: "Em Patrulha", path: "Área Externa → Portaria", lastPoint: "09:41:50", progress: 30, color: colors.amber, routeOffset: 0.55 },
-    ];
+    const guards = [];
 
-    const checkpointHistory = [
-      { name: "Portaria", time: "09:15:00", done: true },
-      { name: "Bloco A", time: "09:18:32", done: true },
-      { name: "Playground", time: "09:23:45", done: true },
-      { name: "Academia", time: "09:29:10", done: true },
-      { name: "Piscina", time: "09:34:21", done: true },
-      { name: "Salão de Festas", time: "Aguardando" },
-      { name: "Área de Lazer", time: "Pendente" },
-    ];
+    const checkpointHistory = [];
 
     let tick = 0;
     let condominiums = loadCondominiums();
@@ -205,7 +121,7 @@
         const stored = localStorage.getItem(storageKey);
         if (!stored) return defaultCondos.map(normalizeCondo);
         const parsed = JSON.parse(stored);
-        return Array.isArray(parsed) && parsed.length ? parsed.map(normalizeCondo) : defaultCondos.map(normalizeCondo);
+        return Array.isArray(parsed) ? parsed.map(normalizeCondo) : defaultCondos.map(normalizeCondo);
       } catch {
         return defaultCondos.map(normalizeCondo);
       }
@@ -249,6 +165,20 @@
 
     function renderCondos() {
       condoList.replaceChildren();
+      if (!condominiums.length) {
+        const empty = document.createElement("article");
+        empty.className = "condo-card empty";
+        empty.innerHTML = `
+          <div class="condo-photo"></div>
+          <div>
+            <strong>Nenhum condomínio cadastrado</strong>
+            <span>Crie o primeiro cadastro</span>
+            <small>A rota e o mapa aparecerão depois</small>
+          </div>
+        `;
+        condoList.appendChild(empty);
+        return;
+      }
       condominiums.slice(0, 5).forEach((condo) => {
         const card = document.createElement("article");
         card.className = `condo-card${condo.id === selectedCondoId ? " active" : ""}${statusClass(condo)}`;
@@ -316,6 +246,7 @@
       completedLayer.replaceChildren();
       mapCheckpoints.replaceChildren();
       mapGuards.replaceChildren();
+      mapCanvas.classList.toggle("empty", !activeCondo());
       const activeRoute = getActiveRoute();
 
       if (activeRoute.length > 1) {
@@ -345,7 +276,7 @@
       const condo = activeCondo();
       if (condo?.patrolRouteGeo?.length) return projectRoute(condo.patrolRouteGeo);
       if (condo?.patrolRoute?.length) return condo.patrolRoute.map(([x, y]) => ({ x, y }));
-      return defaultRoute.map(([x, y]) => ({ x, y }));
+      return [];
     }
 
     function startRouteEditing() {
@@ -491,15 +422,24 @@
 
     function updateOverviewCondoMap() {
       const condo = activeCondo();
-      if (!condo) return;
+      if (!condo) {
+        overviewGoogleMapFrame.removeAttribute("src");
+        lastOverviewMapSrc = "";
+        overviewCondoName.textContent = "Nenhum condomínio cadastrado";
+        overviewCondoStatus.textContent = "Sem dispositivo";
+        overviewCondoAddress.textContent = "Cadastre um condomínio para iniciar o monitoramento.";
+        return;
+      }
       const zoom = condo.googleMapZoom || "18";
       const mapType = condo.googleMapType || "k";
       const lat = normalizeCoordinate(condo.googleAreaLat);
       const lng = normalizeCoordinate(condo.googleAreaLng);
       const addressQuery = [condo.address, condo.city, condo.state, "Brasil"].filter(Boolean).join(", ");
-      const query = lat && lng ? `${lat},${lng}` : addressQuery || "Brasil";
-      const encoded = encodeURIComponent(query);
-      const nextSrc = `https://www.google.com/maps?q=${encoded}&t=${mapType}&z=${zoom}&output=embed`;
+      const encodedAddress = encodeURIComponent(addressQuery || "Brasil");
+      const nextSrc =
+        lat && lng
+          ? `https://www.google.com/maps?ll=${lat},${lng}&t=${mapType}&z=${zoom}&output=embed`
+          : `https://www.google.com/maps?q=${encodedAddress}&t=${mapType}&z=${zoom}&output=embed`;
       if (overviewGoogleMapFrame.src !== nextSrc && lastOverviewMapSrc !== nextSrc) {
         overviewGoogleMapFrame.src = nextSrc;
         lastOverviewMapSrc = nextSrc;
@@ -515,6 +455,14 @@
       header.className = "table-row header";
       header.innerHTML = "<span>Vigilante</span><span>Status</span><span>Percurso Atual</span><span>Último Ponto</span><span>Progresso</span>";
       activeTable.appendChild(header);
+
+      if (!guards.length) {
+        const empty = document.createElement("div");
+        empty.className = "table-row empty";
+        empty.innerHTML = "<span>Nenhum vigilante vinculado</span><span>-</span><span>-</span><span>-</span><span>0%</span>";
+        activeTable.appendChild(empty);
+        return;
+      }
 
       guards.forEach((guard) => {
         const row = document.createElement("div");
@@ -532,6 +480,13 @@
 
     function renderHistory() {
       checkpointHistoryEl.replaceChildren();
+      if (!checkpointHistory.length) {
+        const item = document.createElement("div");
+        item.className = "checkpoint-item";
+        item.innerHTML = "<i></i><span>Nenhum ponto registrado</span><time>-</time>";
+        checkpointHistoryEl.appendChild(item);
+        return;
+      }
       checkpointHistory.forEach((point) => {
         const item = document.createElement("div");
         item.className = `checkpoint-item${point.done ? " done" : ""}`;
@@ -543,10 +498,14 @@
     function updateMetricsFromCondos() {
       const condoMetric = document.querySelector(".metric-card strong");
       const activeGuardsMetric = document.getElementById("activeGuardsMetric");
+      const activeRoutesMetric = document.getElementById("activeRoutesMetric");
+      const openOccurrencesMetric = document.getElementById("openOccurrencesMetric");
       if (condoMetric) condoMetric.textContent = String(condominiums.length);
       if (activeGuardsMetric) {
         activeGuardsMetric.textContent = String(guards.length);
       }
+      if (activeRoutesMetric) activeRoutesMetric.textContent = "0";
+      if (openOccurrencesMetric) openOccurrencesMetric.textContent = "0";
     }
 
     function renderAllCondos() {
@@ -714,10 +673,10 @@
       const now = new Date();
       const time = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       document.getElementById("sidebarClock").textContent = time;
-      document.getElementById("mapAge").textContent = String(10 + (tick % 4));
-      document.getElementById("finishedRoutesMetric").textContent = String(156 + (tick % 3));
-      document.getElementById("detailProgressText").textContent = `${75 + (tick % 2)}%`;
-      document.getElementById("detailProgressBar").style.width = `${75 + (tick % 2)}%`;
+      document.getElementById("mapAge").textContent = activeCondo() ? String(10 + (tick % 4)) : "0";
+      document.getElementById("finishedRoutesMetric").textContent = "0";
+      document.getElementById("detailProgressText").textContent = "0%";
+      document.getElementById("detailProgressBar").style.width = "0%";
     }
 
     function setView(viewName) {
