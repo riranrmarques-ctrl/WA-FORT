@@ -13,61 +13,51 @@
       {
         id: "alpha",
         name: "Residencial Alpha",
-        status: "Online",
-        guardsCount: 4,
+        deviceLinked: true,
         address: "Rua das Palmeiras, 120",
         city: "São Paulo",
         state: "SP",
-        lat: "-23.550520",
-        lng: "-46.633308",
+        image: "",
         notes: "Condomínio piloto para ronda do perímetro externo.",
       },
       {
         id: "belle-ville",
         name: "Condomínio Belle Ville",
-        status: "Online",
-        guardsCount: 3,
+        deviceLinked: true,
         address: "Av. Central, 800",
         city: "São Paulo",
         state: "SP",
-        lat: "-23.556200",
-        lng: "-46.642900",
+        image: "",
         notes: "",
       },
       {
         id: "panorama",
         name: "Edifício Panorama",
-        status: "Online",
-        guardsCount: 2,
+        deviceLinked: true,
         address: "Rua Bela Vista, 45",
         city: "São Paulo",
         state: "SP",
-        lat: "-23.548800",
-        lng: "-46.625900",
+        image: "",
         notes: "",
       },
       {
         id: "jardim-flores",
         name: "Residencial Jardim das Flores",
-        status: "Em atenção",
-        guardsCount: 1,
+        deviceLinked: false,
         address: "Alameda das Flores, 55",
         city: "São Paulo",
         state: "SP",
-        lat: "-23.561500",
-        lng: "-46.638100",
+        image: "",
         notes: "Portão lateral exige conferência manual no turno noturno.",
       },
       {
         id: "solar-aguas",
         name: "Condomínio Solar das Águas",
-        status: "Offline",
-        guardsCount: 0,
+        deviceLinked: false,
         address: "Rua das Águas, 410",
         city: "São Paulo",
         state: "SP",
-        lat: "-23.544400",
-        lng: "-46.651300",
+        image: "",
         notes: "",
       },
     ];
@@ -127,9 +117,13 @@
     const condoForm = document.getElementById("condoForm");
     const adminSearch = document.getElementById("adminSearch");
     const statusFilter = document.getElementById("statusFilter");
-    const pickerMap = document.getElementById("pickerMap");
-    const pickerPin = document.getElementById("pickerPin");
+    const condoImage = document.getElementById("condoImage");
+    const imagePreview = document.getElementById("imagePreview");
+    const removeImageButton = document.getElementById("removeImageButton");
+    const googleMapFrame = document.getElementById("googleMapFrame");
+    const googleMapLink = document.getElementById("googleMapLink");
     const deleteCondoButton = document.getElementById("deleteCondoButton");
+    let currentImage = "";
 
     function svg(tag, attrs = {}) {
       const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
@@ -167,12 +161,25 @@
     function loadCondominiums() {
       try {
         const stored = localStorage.getItem(storageKey);
-        if (!stored) return [...defaultCondos];
+        if (!stored) return defaultCondos.map(normalizeCondo);
         const parsed = JSON.parse(stored);
-        return Array.isArray(parsed) && parsed.length ? parsed : [...defaultCondos];
+        return Array.isArray(parsed) && parsed.length ? parsed.map(normalizeCondo) : defaultCondos.map(normalizeCondo);
       } catch {
-        return [...defaultCondos];
+        return defaultCondos.map(normalizeCondo);
       }
+    }
+
+    function normalizeCondo(condo) {
+      return {
+        id: condo.id || `condo-${Date.now()}`,
+        name: condo.name || "Condomínio sem nome",
+        deviceLinked: typeof condo.deviceLinked === "boolean" ? condo.deviceLinked : condo.status === "Online",
+        address: condo.address || "",
+        city: condo.city || "",
+        state: condo.state || "",
+        image: condo.image || "",
+        notes: condo.notes || "",
+      };
     }
 
     function saveCondominiums() {
@@ -183,14 +190,12 @@
       return condominiums.find((condo) => condo.id === selectedCondoId) || condominiums[0] || null;
     }
 
-    function guardText(count) {
-      const value = Number(count || 0);
-      return `${value} ${value === 1 ? "vigilante ativo" : "vigilantes ativos"}`;
+    function deviceStatus(condo) {
+      return condo.deviceLinked ? "Com dispositivo" : "Aguardando dispositivo";
     }
 
     function statusClass(condo) {
-      if (condo.status === "Offline") return " offline";
-      if (condo.status === "Em atenção") return " attention";
+      if (!condo.deviceLinked) return " attention";
       return "";
     }
 
@@ -203,8 +208,8 @@
           <div class="condo-photo"></div>
           <div>
             <strong>${condo.name}</strong>
-            <span>${condo.status}</span>
-            <small>${guardText(condo.guardsCount)}</small>
+            <span>${deviceStatus(condo)}</span>
+            <small>${condo.city || "Cidade não informada"} ${condo.state || ""}</small>
           </div>
         `;
         card.addEventListener("click", () => {
@@ -221,7 +226,8 @@
       const status = statusFilter.value;
       const filtered = condominiums.filter((condo) => {
         const text = `${condo.name} ${condo.address} ${condo.city} ${condo.state}`.toLowerCase();
-        return text.includes(term) && (status === "Todos" || condo.status === status);
+        const deviceFilter = status === "Com dispositivo" ? condo.deviceLinked : status === "Sem dispositivo" ? !condo.deviceLinked : true;
+        return text.includes(term) && deviceFilter;
       });
 
       adminCondoList.replaceChildren();
@@ -236,13 +242,13 @@
       filtered.forEach((condo) => {
         const card = document.createElement("article");
         card.className = `admin-condo-card${condo.id === selectedCondoId ? " active" : ""}`;
-        card.dataset.status = condo.status;
+        card.dataset.status = condo.deviceLinked ? "Com dispositivo" : "Sem dispositivo";
         card.innerHTML = `
           <div>
             <strong>${condo.name}</strong>
-            <span>${condo.status}</span>
+            <span>${deviceStatus(condo)}</span>
             <small>${condo.address || "Endereço não informado"} • ${condo.city || "Cidade"} ${condo.state || ""}</small>
-            <small>${guardText(condo.guardsCount)} • ${condo.lat || "sem latitude"}, ${condo.lng || "sem longitude"}</small>
+            <small>${condo.deviceLinked ? "Dispositivo operacional vinculado" : "Vincule um dispositivo para ativar status em tempo real"}</small>
           </div>
           <div class="admin-card-actions">
             <button class="mini-button" type="button">Editar</button>
@@ -322,7 +328,7 @@
       const activeGuardsMetric = document.getElementById("activeGuardsMetric");
       if (condoMetric) condoMetric.textContent = String(condominiums.length);
       if (activeGuardsMetric) {
-        activeGuardsMetric.textContent = String(condominiums.reduce((total, condo) => total + Number(condo.guardsCount || 0), 0));
+        activeGuardsMetric.textContent = String(guards.length);
       }
     }
 
@@ -342,15 +348,13 @@
       document.getElementById("formTitle").textContent = "Editar Condomínio";
       document.getElementById("formSubtitle").textContent = selected.name;
       document.getElementById("condoName").value = selected.name || "";
-      document.getElementById("condoStatus").value = selected.status || "Online";
       document.getElementById("condoAddress").value = selected.address || "";
       document.getElementById("condoCity").value = selected.city || "";
       document.getElementById("condoState").value = selected.state || "";
-      document.getElementById("condoGuards").value = String(selected.guardsCount || 0);
-      document.getElementById("condoLat").value = selected.lat || "";
-      document.getElementById("condoLng").value = selected.lng || "";
       document.getElementById("condoNotes").value = selected.notes || "";
-      updatePickerPin(selected.lat, selected.lng);
+      currentImage = selected.image || "";
+      renderImagePreview();
+      updateGoogleMap(selected);
       deleteCondoButton.disabled = condominiums.length <= 1;
     }
 
@@ -358,12 +362,11 @@
       selectedCondoId = null;
       condoForm.reset();
       document.getElementById("formTitle").textContent = "Novo Condomínio";
-      document.getElementById("formSubtitle").textContent = "Preencha os dados principais e marque a posição no mapa.";
-      document.getElementById("condoStatus").value = "Online";
-      document.getElementById("condoGuards").value = "0";
-      document.getElementById("condoLat").value = "";
-      document.getElementById("condoLng").value = "";
-      updatePickerPin("", "");
+      document.getElementById("formSubtitle").textContent = "Preencha os dados principais e adicione a imagem do condomínio.";
+      currentImage = "";
+      condoImage.value = "";
+      renderImagePreview();
+      updateGoogleMap(null);
       deleteCondoButton.disabled = true;
       renderAllCondos();
     }
@@ -373,13 +376,11 @@
       const payload = {
         id: selectedCondoId || `condo-${Date.now()}`,
         name: formValue("condoName"),
-        status: formValue("condoStatus"),
+        deviceLinked: condominiums.find((condo) => condo.id === selectedCondoId)?.deviceLinked || false,
         address: formValue("condoAddress"),
         city: formValue("condoCity"),
         state: formValue("condoState").toUpperCase(),
-        guardsCount: Number(formValue("condoGuards") || 0),
-        lat: formValue("condoLat"),
-        lng: formValue("condoLng"),
+        image: currentImage,
         notes: formValue("condoNotes"),
       };
 
@@ -405,25 +406,31 @@
       renderAllCondos();
     }
 
-    function updatePickerPin(lat, lng) {
-      const latNumber = Number(String(lat).replace(",", "."));
-      const lngNumber = Number(String(lng).replace(",", "."));
-      const hasCoordinates = Number.isFinite(latNumber) && Number.isFinite(lngNumber);
-      const x = hasCoordinates ? 50 + Math.max(-20, Math.min(20, (lngNumber + 46.63) * 120)) : 50;
-      const y = hasCoordinates ? 50 - Math.max(-20, Math.min(20, (latNumber + 23.55) * 120)) : 50;
-      pickerPin.style.left = `${x}%`;
-      pickerPin.style.top = `${y}%`;
+    function renderImagePreview() {
+      if (!currentImage) {
+        imagePreview.innerHTML = "<span>Sem imagem cadastrada</span>";
+        return;
+      }
+      imagePreview.innerHTML = `<img src="${currentImage}" alt="Imagem do condomínio" />`;
     }
 
-    function setCoordinatesFromMap(event) {
-      const rect = pickerMap.getBoundingClientRect();
-      const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-      const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
-      const lat = -23.55 + (0.5 - y) / 120;
-      const lng = -46.63 + (x - 0.5) / 120;
-      document.getElementById("condoLat").value = lat.toFixed(6);
-      document.getElementById("condoLng").value = lng.toFixed(6);
-      updatePickerPin(lat, lng);
+    function updateGoogleMap(condo) {
+      const selected = condo || { address: formValue("condoAddress"), city: formValue("condoCity"), state: formValue("condoState") };
+      const query = [selected.address, selected.city, selected.state, "Brasil"].filter(Boolean).join(", ");
+      const encoded = encodeURIComponent(query || "Brasil");
+      googleMapFrame.src = `https://www.google.com/maps?q=${encoded}&output=embed`;
+      googleMapLink.href = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+    }
+
+    function handleImageUpload(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        currentImage = String(reader.result || "");
+        renderImagePreview();
+      };
+      reader.readAsDataURL(file);
     }
 
     function updateClock() {
@@ -463,9 +470,15 @@
     deleteCondoButton.addEventListener("click", deleteSelectedCondo);
     adminSearch.addEventListener("input", renderAdminCondos);
     statusFilter.addEventListener("change", renderAdminCondos);
-    pickerMap.addEventListener("click", setCoordinatesFromMap);
-    document.getElementById("condoLat").addEventListener("input", () => updatePickerPin(formValue("condoLat"), formValue("condoLng")));
-    document.getElementById("condoLng").addEventListener("input", () => updatePickerPin(formValue("condoLat"), formValue("condoLng")));
+    condoImage.addEventListener("change", handleImageUpload);
+    removeImageButton.addEventListener("click", () => {
+      currentImage = "";
+      condoImage.value = "";
+      renderImagePreview();
+    });
+    ["condoAddress", "condoCity", "condoState"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", () => updateGoogleMap(null));
+    });
 
     renderAllCondos();
     renderTable();
