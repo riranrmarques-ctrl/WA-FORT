@@ -74,8 +74,10 @@
     const clearRouteButton = document.getElementById("clearRouteButton");
     const routeCoordinatePanel = document.getElementById("routeCoordinatePanel");
     const routePointName = document.getElementById("routePointName");
-    const routePointLat = document.getElementById("routePointLat");
-    const routePointLng = document.getElementById("routePointLng");
+    const routeStartLat = document.getElementById("routeStartLat");
+    const routeStartLng = document.getElementById("routeStartLng");
+    const routeEndLat = document.getElementById("routeEndLat");
+    const routeEndLng = document.getElementById("routeEndLng");
     const routePointList = document.getElementById("routePointList");
     const addCoordinatePointButton = document.getElementById("addCoordinatePointButton");
     let currentImage = "";
@@ -90,7 +92,7 @@
     }
 
     function pathFrom(points) {
-      return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+      return points.map((point, index) => `${index === 0 || point.move ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
     }
 
     function pointAt(points, progress) {
@@ -128,6 +130,7 @@
     }
 
     function normalizeCondo(condo) {
+      const routeSegments = normalizeRouteSegments(condo.patrolRouteSegments, condo.patrolRouteGeo);
       return {
         id: condo.id || `condo-${Date.now()}`,
         name: condo.name || "Condomínio sem nome",
@@ -141,9 +144,54 @@
         googleMapType: condo.googleMapType || "k",
         googleMapZoom: condo.googleMapZoom || "18",
         patrolRoute: Array.isArray(condo.patrolRoute) ? condo.patrolRoute : [],
-        patrolRouteGeo: Array.isArray(condo.patrolRouteGeo) ? condo.patrolRouteGeo : [],
+        patrolRouteGeo: routeSegmentsToPoints(routeSegments),
+        patrolRouteSegments: routeSegments,
         notes: condo.notes || "",
       };
+    }
+
+    function normalizeRouteSegments(segments, legacyPoints) {
+      if (Array.isArray(segments) && segments.length) {
+        return segments
+          .map((segment, index) => ({
+            name: segment.name || `Rota ${index + 1}`,
+            startLat: normalizeCoordinate(segment.startLat),
+            startLng: normalizeCoordinate(segment.startLng),
+            endLat: normalizeCoordinate(segment.endLat),
+            endLng: normalizeCoordinate(segment.endLng),
+          }))
+          .filter((segment) => segment.startLat && segment.startLng && segment.endLat && segment.endLng);
+      }
+
+      if (!Array.isArray(legacyPoints) || legacyPoints.length < 2) return [];
+      return legacyPoints.slice(0, -1).map((point, index) => {
+        const next = legacyPoints[index + 1];
+        return {
+          name: `Rota ${index + 1}`,
+          startLat: normalizeCoordinate(point.lat),
+          startLng: normalizeCoordinate(point.lng),
+          endLat: normalizeCoordinate(next.lat),
+          endLng: normalizeCoordinate(next.lng),
+        };
+      });
+    }
+
+    function routeSegmentsToPoints(segments) {
+      if (!Array.isArray(segments) || !segments.length) return [];
+      return segments.flatMap((segment, index) => {
+        const start = {
+          name: `${segment.name || `Rota ${index + 1}`} início`,
+          lat: segment.startLat,
+          lng: segment.startLng,
+        };
+        const end = {
+          name: `${segment.name || `Rota ${index + 1}`} fim`,
+          lat: segment.endLat,
+          lng: segment.endLng,
+        };
+        start.move = index > 0;
+        return [start, end];
+      });
     }
 
     function saveCondominiums() {
@@ -250,9 +298,11 @@
       const activeRoute = getActiveRoute();
 
       if (activeRoute.length > 1) {
-        completedLayer.appendChild(svg("path", { class: "route-shadow", d: pathFrom(activeRoute) }));
+        plannedLayer.appendChild(svg("path", { class: "route-shadow", d: pathFrom(activeRoute) }));
         plannedLayer.appendChild(svg("path", { class: "route-planned", d: pathFrom(activeRoute) }));
-        completedLayer.appendChild(svg("path", { class: "route-completed", d: partialPath(activeRoute, 0.75 + Math.sin(tick / 5) * 0.02) }));
+        if (guards.length) {
+          completedLayer.appendChild(svg("path", { class: "route-completed", d: partialPath(activeRoute, 0.75 + Math.sin(tick / 5) * 0.02) }));
+        }
       }
 
       activeRoute.forEach((point, index) => {
@@ -272,7 +322,7 @@
     }
 
     function getActiveRoute() {
-      if (routeEditing) return projectRoute(draftRoute);
+      if (routeEditing) return projectRoute(routeSegmentsToPoints(draftRoute));
       const condo = activeCondo();
       if (condo?.patrolRouteGeo?.length) return projectRoute(condo.patrolRouteGeo);
       if (condo?.patrolRoute?.length) return condo.patrolRoute.map(([x, y]) => ({ x, y }));
@@ -282,7 +332,7 @@
     function startRouteEditing() {
       routeEditing = !routeEditing;
       const condo = activeCondo();
-      draftRoute = condo?.patrolRouteGeo?.length ? condo.patrolRouteGeo.map((point) => ({ ...point })) : [];
+      draftRoute = condo?.patrolRouteSegments?.length ? condo.patrolRouteSegments.map((segment) => ({ ...segment })) : [];
       mapCanvas.classList.toggle("editing", routeEditing);
       editRouteButton.classList.toggle("active", routeEditing);
       editRouteButton.textContent = routeEditing ? "Editando..." : "Editar rota";
@@ -292,12 +342,9 @@
 
     function saveRoute() {
       const condo = activeCondo();
-      if (!condo || draftRoute.length < 2) return;
-      condo.patrolRouteGeo = draftRoute.map((point, index) => ({
-        name: point.name || `Ponto ${index + 1}`,
-        lat: normalizeCoordinate(point.lat),
-        lng: normalizeCoordinate(point.lng),
-      }));
+      if (!condo || !draftRoute.length) return;
+      condo.patrolRouteSegments = normalizeRouteSegments(draftRoute, []);
+      condo.patrolRouteGeo = routeSegmentsToPoints(condo.patrolRouteSegments);
       condo.patrolRoute = projectRoute(condo.patrolRouteGeo).map((point) => [Math.round(point.x), Math.round(point.y)]);
       routeEditing = false;
       mapCanvas.classList.remove("editing");
@@ -314,6 +361,7 @@
       if (!routeEditing && condo) {
         condo.patrolRoute = [];
         condo.patrolRouteGeo = [];
+        condo.patrolRouteSegments = [];
         saveCondominiums();
       }
       renderRoutePointList();
@@ -323,42 +371,49 @@
     function addRoutePoint(event) {
       event.preventDefault();
       if (!routeEditing) startRouteEditing();
-      const lat = normalizeCoordinate(routePointLat.value);
-      const lng = normalizeCoordinate(routePointLng.value);
-      if (!lat || !lng) {
-        routePointLat.focus();
+      const startLat = normalizeCoordinate(routeStartLat.value);
+      const startLng = normalizeCoordinate(routeStartLng.value);
+      const endLat = normalizeCoordinate(routeEndLat.value);
+      const endLng = normalizeCoordinate(routeEndLng.value);
+      if (!startLat || !startLng || !endLat || !endLng) {
+        routeStartLat.focus();
         return;
       }
       draftRoute.push({
-        name: routePointName.value.trim() || `Ponto ${draftRoute.length + 1}`,
-        lat,
-        lng,
+        name: routePointName.value.trim() || `Rota ${draftRoute.length + 1}`,
+        startLat,
+        startLng,
+        endLat,
+        endLng,
       });
-      focusGoogleMapOnPoint({ lat, lng });
+      focusGoogleMapOnPoint({ lat: startLat, lng: startLng });
       routePointName.value = "";
-      routePointLat.value = "";
-      routePointLng.value = "";
+      routeStartLat.value = "";
+      routeStartLng.value = "";
+      routeEndLat.value = "";
+      routeEndLng.value = "";
       renderRoutePointList();
       renderMap();
     }
 
     function renderRoutePointList() {
-      const source = routeEditing ? draftRoute : activeCondo()?.patrolRouteGeo || [];
+      const source = routeEditing ? draftRoute : activeCondo()?.patrolRouteSegments || [];
       routePointList.replaceChildren();
       if (!source.length) {
         const empty = document.createElement("span");
         empty.className = "route-point-item";
-        empty.textContent = "Nenhum ponto adicionado";
+        empty.textContent = "Nenhuma rota adicionada";
         routePointList.appendChild(empty);
         return;
       }
-      source.forEach((point, index) => {
+      source.forEach((segment, index) => {
         const item = document.createElement("span");
         item.className = "route-point-item";
         item.innerHTML = `
           <b>${String(index + 1).padStart(2, "0")}</b>
-          <span>${point.name || "Ponto"} • ${point.lat}, ${point.lng}</span>
-          <button type="button" data-focus-point="${index}" title="Ver este ponto no Google">Ver</button>
+          <span>${segment.name || `Rota ${index + 1}`} • ${segment.startLat}, ${segment.startLng} até ${segment.endLat}, ${segment.endLng}</span>
+          <button type="button" data-focus-route="${index}" data-route-edge="start" title="Ver início no Google">Início</button>
+          <button type="button" data-focus-route="${index}" data-route-edge="end" title="Ver fim no Google">Fim</button>
         `;
         routePointList.appendChild(item);
       });
@@ -384,6 +439,7 @@
             name: point.name || "",
             lat: String(point.lat),
             lng: String(point.lng),
+            move: Boolean(point.move),
           };
         })
         .filter(Boolean);
@@ -504,7 +560,9 @@
       if (activeGuardsMetric) {
         activeGuardsMetric.textContent = String(guards.length);
       }
-      if (activeRoutesMetric) activeRoutesMetric.textContent = "0";
+      if (activeRoutesMetric) {
+        activeRoutesMetric.textContent = String(condominiums.reduce((total, condo) => total + (condo.patrolRouteSegments?.length || 0), 0));
+      }
       if (openOccurrencesMetric) openOccurrencesMetric.textContent = "0";
     }
 
@@ -534,7 +592,7 @@
       googleMapZoom.value = selected.googleMapZoom || "18";
       currentImage = selected.image || "";
       routeEditing = false;
-      draftRoute = selected.patrolRouteGeo?.length ? selected.patrolRouteGeo.map((point) => ({ ...point })) : [];
+      draftRoute = selected.patrolRouteSegments?.length ? selected.patrolRouteSegments.map((segment) => ({ ...segment })) : [];
       editRouteButton.classList.remove("active");
       editRouteButton.textContent = "Editar rota";
       renderImagePreview();
@@ -577,10 +635,15 @@
         googleAreaLng: formValue("googleAreaLng"),
         googleMapType: formValue("googleMapType") || "k",
         googleMapZoom: formValue("googleMapZoom") || "18",
-        patrolRoute: condominiums.find((condo) => condo.id === selectedCondoId)?.patrolRoute || [],
-        patrolRouteGeo: condominiums.find((condo) => condo.id === selectedCondoId)?.patrolRouteGeo || [],
+        patrolRoute: [],
+        patrolRouteGeo: [],
+        patrolRouteSegments: routeEditing
+          ? normalizeRouteSegments(draftRoute, [])
+          : condominiums.find((condo) => condo.id === selectedCondoId)?.patrolRouteSegments || normalizeRouteSegments(draftRoute, []),
         notes: formValue("condoNotes"),
       };
+      payload.patrolRouteGeo = routeSegmentsToPoints(payload.patrolRouteSegments);
+      payload.patrolRoute = projectRoute(payload.patrolRouteGeo).map((point) => [Math.round(point.x), Math.round(point.y)]);
 
       const existingIndex = condominiums.findIndex((condo) => condo.id === payload.id);
       if (existingIndex >= 0) {
@@ -590,6 +653,8 @@
       }
 
       selectedCondoId = payload.id;
+      routeEditing = false;
+      draftRoute = payload.patrolRouteSegments.map((segment) => ({ ...segment }));
       saveCondominiums();
       fillForm(payload);
       renderAllCondos();
@@ -732,12 +797,18 @@
     clearRouteButton.addEventListener("click", clearRoute);
     addCoordinatePointButton.addEventListener("click", addRoutePoint);
     routePointList.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-focus-point]");
+      const button = event.target.closest("[data-focus-route]");
       if (!button) return;
-      const source = routeEditing ? draftRoute : activeCondo()?.patrolRouteGeo || [];
-      focusGoogleMapOnPoint(source[Number(button.dataset.focusPoint)]);
+      const source = routeEditing ? draftRoute : activeCondo()?.patrolRouteSegments || [];
+      const segment = source[Number(button.dataset.focusRoute)];
+      if (!segment) return;
+      const isEnd = button.dataset.routeEdge === "end";
+      focusGoogleMapOnPoint({
+        lat: isEnd ? segment.endLat : segment.startLat,
+        lng: isEnd ? segment.endLng : segment.startLng,
+      });
     });
-    [routePointName, routePointLat, routePointLng].forEach((input) => {
+    [routePointName, routeStartLat, routeStartLng, routeEndLat, routeEndLng].forEach((input) => {
       input.addEventListener("keydown", (event) => {
         if (event.key === "Enter") addRoutePoint(event);
       });
