@@ -156,9 +156,15 @@
     const editRouteButton = document.getElementById("editRouteButton");
     const saveRouteButton = document.getElementById("saveRouteButton");
     const clearRouteButton = document.getElementById("clearRouteButton");
+    const routeCoordinatePanel = document.getElementById("routeCoordinatePanel");
+    const routePointName = document.getElementById("routePointName");
+    const routePointLat = document.getElementById("routePointLat");
+    const routePointLng = document.getElementById("routePointLng");
+    const addCoordinatePointButton = document.getElementById("addCoordinatePointButton");
     let currentImage = "";
     let routeEditing = false;
     let draftRoute = [];
+    let lastOverviewMapSrc = "";
 
     function svg(tag, attrs = {}) {
       const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
@@ -167,7 +173,7 @@
     }
 
     function pathFrom(points) {
-      return points.map(([x, y], index) => `${index === 0 ? "M" : "L"} ${x} ${y}`).join(" ");
+      return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
     }
 
     function pointAt(points, progress) {
@@ -176,8 +182,8 @@
       const index = Math.floor(scaled);
       const next = Math.min(index + 1, points.length - 1);
       const local = scaled - index;
-      const [x1, y1] = points[index];
-      const [x2, y2] = points[next];
+      const { x: x1, y: y1 } = points[index];
+      const { x: x2, y: y2 } = points[next];
       return { x: x1 + (x2 - x1) * local, y: y1 + (y2 - y1) * local };
     }
 
@@ -187,9 +193,9 @@
       const result = points.slice(0, index + 1);
       const next = Math.min(index + 1, points.length - 1);
       const local = scaled - index;
-      const [x1, y1] = points[index];
-      const [x2, y2] = points[next];
-      result.push([x1 + (x2 - x1) * local, y1 + (y2 - y1) * local]);
+      const { x: x1, y: y1 } = points[index];
+      const { x: x2, y: y2 } = points[next];
+      result.push({ x: x1 + (x2 - x1) * local, y: y1 + (y2 - y1) * local });
       return pathFrom(result);
     }
 
@@ -218,6 +224,7 @@
         googleMapType: condo.googleMapType || "k",
         googleMapZoom: condo.googleMapZoom || "18",
         patrolRoute: Array.isArray(condo.patrolRoute) ? condo.patrolRoute : [],
+        patrolRouteGeo: Array.isArray(condo.patrolRouteGeo) ? condo.patrolRouteGeo : [],
         notes: condo.notes || "",
       };
     }
@@ -304,7 +311,6 @@
     }
 
     function renderMap() {
-      updateOverviewCondoMap();
       plannedLayer.replaceChildren();
       completedLayer.replaceChildren();
       mapCheckpoints.replaceChildren();
@@ -317,11 +323,11 @@
         completedLayer.appendChild(svg("path", { class: "route-completed", d: partialPath(activeRoute, 0.75 + Math.sin(tick / 5) * 0.02) }));
       }
 
-      activeRoute.forEach(([x, y], index) => {
+      activeRoute.forEach((point, index) => {
         const pointColor = [colors.blue, colors.green, colors.violet, colors.amber][index % 4];
-        mapCheckpoints.appendChild(svg("circle", { class: "checkpoint-ring", cx: x, cy: y, r: 18, fill: pointColor }));
-        const label = svg("text", { class: "map-label", x, y: y + 1 });
-        label.textContent = String(index + 1).padStart(2, "0");
+        mapCheckpoints.appendChild(svg("circle", { class: "checkpoint-ring", cx: point.x, cy: point.y, r: 18, fill: pointColor }));
+        const label = svg("text", { class: "map-label", x: point.x, y: point.y + 1 });
+        label.textContent = point.name ? String(index + 1).padStart(2, "0") : String(index + 1).padStart(2, "0");
         mapCheckpoints.appendChild(label);
       });
 
@@ -334,16 +340,19 @@
     }
 
     function getActiveRoute() {
-      if (routeEditing) return draftRoute;
+      if (routeEditing) return projectRoute(draftRoute);
       const condo = activeCondo();
-      return condo?.patrolRoute?.length ? condo.patrolRoute : defaultRoute;
+      if (condo?.patrolRouteGeo?.length) return projectRoute(condo.patrolRouteGeo);
+      if (condo?.patrolRoute?.length) return condo.patrolRoute.map(([x, y]) => ({ x, y }));
+      return defaultRoute.map(([x, y]) => ({ x, y }));
     }
 
     function startRouteEditing() {
       routeEditing = !routeEditing;
       const condo = activeCondo();
-      draftRoute = condo?.patrolRoute?.length ? condo.patrolRoute.map((point) => [...point]) : defaultRoute.map((point) => [...point]);
+      draftRoute = condo?.patrolRouteGeo?.length ? condo.patrolRouteGeo.map((point) => ({ ...point })) : [];
       mapCanvas.classList.toggle("editing", routeEditing);
+      routeCoordinatePanel.classList.toggle("active", routeEditing);
       editRouteButton.classList.toggle("active", routeEditing);
       editRouteButton.textContent = routeEditing ? "Editando..." : "Editar rota";
       renderMap();
@@ -352,9 +361,15 @@
     function saveRoute() {
       const condo = activeCondo();
       if (!condo || draftRoute.length < 2) return;
-      condo.patrolRoute = draftRoute.map(([x, y]) => [Math.round(x), Math.round(y)]);
+      condo.patrolRouteGeo = draftRoute.map((point, index) => ({
+        name: point.name || `Ponto ${index + 1}`,
+        lat: normalizeCoordinate(point.lat),
+        lng: normalizeCoordinate(point.lng),
+      }));
+      condo.patrolRoute = projectRoute(condo.patrolRouteGeo).map((point) => [Math.round(point.x), Math.round(point.y)]);
       routeEditing = false;
       mapCanvas.classList.remove("editing");
+      routeCoordinatePanel.classList.remove("active");
       editRouteButton.classList.remove("active");
       editRouteButton.textContent = "Editar rota";
       saveCondominiums();
@@ -366,19 +381,74 @@
       const condo = activeCondo();
       if (!routeEditing && condo) {
         condo.patrolRoute = [];
+        condo.patrolRouteGeo = [];
         saveCondominiums();
       }
       renderMap();
     }
 
     function addRoutePoint(event) {
+      event.preventDefault();
       if (!routeEditing) return;
-      if (event.target.closest(".map-controls, .map-badge, .route-editor-hint")) return;
-      const rect = mapCanvas.getBoundingClientRect();
-      const x = ((event.clientX - rect.left) / rect.width) * 940;
-      const y = ((event.clientY - rect.top) / rect.height) * 520;
-      draftRoute.push([Math.max(0, Math.min(940, x)), Math.max(0, Math.min(520, y))]);
+      const lat = normalizeCoordinate(routePointLat.value);
+      const lng = normalizeCoordinate(routePointLng.value);
+      if (!lat || !lng) return;
+      draftRoute.push({
+        name: routePointName.value.trim() || `Ponto ${draftRoute.length + 1}`,
+        lat,
+        lng,
+      });
+      routePointName.value = "";
+      routePointLat.value = "";
+      routePointLng.value = "";
       renderMap();
+    }
+
+    function projectRoute(routeGeo) {
+      const condo = activeCondo();
+      const centerLat = Number(normalizeCoordinate(condo?.googleAreaLat)) || Number(routeGeo[0]?.lat) || 0;
+      const centerLng = Number(normalizeCoordinate(condo?.googleAreaLng)) || Number(routeGeo[0]?.lng) || 0;
+      const zoom = Number(condo?.googleMapZoom || 18);
+      const metersPerPixel = 156543.03392 * Math.cos((centerLat * Math.PI) / 180) / Math.pow(2, zoom);
+      const scale = Math.max(0.2, metersPerPixel / 0.72);
+      return routeGeo
+        .map((point) => {
+          const lat = Number(normalizeCoordinate(point.lat));
+          const lng = Number(normalizeCoordinate(point.lng));
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+          const metersX = (lng - centerLng) * 111320 * Math.cos((centerLat * Math.PI) / 180);
+          const metersY = (centerLat - lat) * 110540;
+          return {
+            x: Math.max(0, Math.min(940, 470 + metersX / scale)),
+            y: Math.max(0, Math.min(520, 260 + metersY / scale)),
+            name: point.name || "",
+            lat: String(point.lat),
+            lng: String(point.lng),
+          };
+        })
+        .filter(Boolean);
+    }
+
+    function distanceMeters(a, b) {
+      const radius = 6371000;
+      const lat1 = (Number(a.lat) * Math.PI) / 180;
+      const lat2 = (Number(b.lat) * Math.PI) / 180;
+      const deltaLat = ((Number(b.lat) - Number(a.lat)) * Math.PI) / 180;
+      const deltaLng = ((Number(b.lng) - Number(a.lng)) * Math.PI) / 180;
+      const h =
+        Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+        Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+      return radius * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+    }
+
+    function nearestRouteDistanceMeters(position, routeGeo) {
+      if (!routeGeo?.length) return Infinity;
+      return Math.min(...routeGeo.map((point) => distanceMeters(position, point)));
+    }
+
+    function isGuardOffRoute(position, condo, toleranceMeters = 35) {
+      const distance = nearestRouteDistanceMeters(position, condo?.patrolRouteGeo || []);
+      return { offRoute: distance > toleranceMeters, distance };
     }
 
     function updateOverviewCondoMap() {
@@ -391,7 +461,11 @@
       const addressQuery = [condo.address, condo.city, condo.state, "Brasil"].filter(Boolean).join(", ");
       const query = lat && lng ? `${lat},${lng}` : addressQuery || "Brasil";
       const encoded = encodeURIComponent(query);
-      overviewGoogleMapFrame.src = `https://www.google.com/maps?q=${encoded}&t=${mapType}&z=${zoom}&output=embed`;
+      const nextSrc = `https://www.google.com/maps?q=${encoded}&t=${mapType}&z=${zoom}&output=embed`;
+      if (overviewGoogleMapFrame.src !== nextSrc && lastOverviewMapSrc !== nextSrc) {
+        overviewGoogleMapFrame.src = nextSrc;
+        lastOverviewMapSrc = nextSrc;
+      }
       overviewCondoName.textContent = condo.name || "Condomínio";
       overviewCondoStatus.textContent = deviceStatus(condo);
       overviewCondoAddress.textContent = [condo.address, condo.city, condo.state].filter(Boolean).join(" • ") || "Endereço não informado";
@@ -499,6 +573,7 @@
         googleMapType: formValue("googleMapType") || "k",
         googleMapZoom: formValue("googleMapZoom") || "18",
         patrolRoute: condominiums.find((condo) => condo.id === selectedCondoId)?.patrolRoute || [],
+        patrolRouteGeo: condominiums.find((condo) => condo.id === selectedCondoId)?.patrolRouteGeo || [],
         notes: formValue("condoNotes"),
       };
 
@@ -513,6 +588,7 @@
       saveCondominiums();
       fillForm(payload);
       renderAllCondos();
+      updateOverviewCondoMap();
     }
 
     function deleteSelectedCondo() {
@@ -522,6 +598,7 @@
       saveCondominiums();
       fillForm(activeCondo());
       renderAllCondos();
+      updateOverviewCondoMap();
     }
 
     function renderImagePreview() {
@@ -591,6 +668,8 @@
       if (viewName === "condominiums") {
         fillForm(activeCondo());
         renderAllCondos();
+      } else if (viewName === "overview") {
+        updateOverviewCondoMap();
       }
     }
 
@@ -626,12 +705,13 @@
     editRouteButton.addEventListener("click", startRouteEditing);
     saveRouteButton.addEventListener("click", saveRoute);
     clearRouteButton.addEventListener("click", clearRoute);
-    mapCanvas.addEventListener("click", addRoutePoint);
+    addCoordinatePointButton.addEventListener("click", addRoutePoint);
 
     renderAllCondos();
     renderTable();
     renderHistory();
     fillForm(activeCondo());
+    updateOverviewCondoMap();
     render();
     setInterval(render, 1200);
     window.safewayPanelReady = true;
