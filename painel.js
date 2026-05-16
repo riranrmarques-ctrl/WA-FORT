@@ -403,6 +403,7 @@
         lat,
         lng,
       });
+      focusGoogleMapOnPoint({ lat, lng });
       routePointName.value = "";
       routePointLat.value = "";
       routePointLng.value = "";
@@ -423,7 +424,11 @@
       source.forEach((point, index) => {
         const item = document.createElement("span");
         item.className = "route-point-item";
-        item.innerHTML = `<b>${String(index + 1).padStart(2, "0")}</b>${point.name || "Ponto"} • ${point.lat}, ${point.lng}`;
+        item.innerHTML = `
+          <b>${String(index + 1).padStart(2, "0")}</b>
+          <span>${point.name || "Ponto"} • ${point.lat}, ${point.lng}</span>
+          <button type="button" data-focus-point="${index}" title="Ver este ponto no Google">Ver</button>
+        `;
         routePointList.appendChild(item);
       });
     }
@@ -674,6 +679,17 @@
         : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
     }
 
+    function focusGoogleMapOnPoint(point) {
+      const lat = normalizeCoordinate(point?.lat);
+      const lng = normalizeCoordinate(point?.lng);
+      if (!lat || !lng) return;
+      const zoom = formValue("googleMapZoom") || activeCondo()?.googleMapZoom || "19";
+      const mapType = formValue("googleMapType") || activeCondo()?.googleMapType || "k";
+      const encoded = encodeURIComponent(`${lat},${lng}`);
+      googleMapFrame.src = `https://www.google.com/maps?q=${encoded}&t=${mapType}&z=${zoom}&output=embed`;
+      googleMapLink.href = `https://www.google.com/maps/@${lat},${lng},${zoom}z/data=!3m1!1e3`;
+    }
+
     function normalizeCoordinate(value) {
       const normalized = String(value || "")
         .trim()
@@ -751,6 +767,12 @@
     saveRouteButton.addEventListener("click", saveRoute);
     clearRouteButton.addEventListener("click", clearRoute);
     addCoordinatePointButton.addEventListener("click", addRoutePoint);
+    routePointList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-focus-point]");
+      if (!button) return;
+      const source = routeEditing ? draftRoute : activeCondo()?.patrolRouteGeo || [];
+      focusGoogleMapOnPoint(source[Number(button.dataset.focusPoint)]);
+    });
     [routePointName, routePointLat, routePointLng].forEach((input) => {
       input.addEventListener("keydown", (event) => {
         if (event.key === "Enter") addRoutePoint(event);
