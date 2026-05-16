@@ -18,7 +18,8 @@
         city: "São Paulo",
         state: "SP",
         image: "",
-        googleAreaLink: "",
+        googleAreaLat: "",
+        googleAreaLng: "",
         googleMapType: "k",
         googleMapZoom: "18",
         notes: "Condomínio piloto para ronda do perímetro externo.",
@@ -31,7 +32,8 @@
         city: "São Paulo",
         state: "SP",
         image: "",
-        googleAreaLink: "",
+        googleAreaLat: "",
+        googleAreaLng: "",
         googleMapType: "k",
         googleMapZoom: "18",
         notes: "",
@@ -44,7 +46,8 @@
         city: "São Paulo",
         state: "SP",
         image: "",
-        googleAreaLink: "",
+        googleAreaLat: "",
+        googleAreaLng: "",
         googleMapType: "k",
         googleMapZoom: "18",
         notes: "",
@@ -57,7 +60,8 @@
         city: "São Paulo",
         state: "SP",
         image: "",
-        googleAreaLink: "",
+        googleAreaLat: "",
+        googleAreaLng: "",
         googleMapType: "k",
         googleMapZoom: "18",
         notes: "Portão lateral exige conferência manual no turno noturno.",
@@ -70,7 +74,8 @@
         city: "São Paulo",
         state: "SP",
         image: "",
-        googleAreaLink: "",
+        googleAreaLat: "",
+        googleAreaLng: "",
         googleMapType: "k",
         googleMapZoom: "18",
         notes: "",
@@ -137,7 +142,8 @@
     const removeImageButton = document.getElementById("removeImageButton");
     const googleMapFrame = document.getElementById("googleMapFrame");
     const googleMapLink = document.getElementById("googleMapLink");
-    const googleAreaLink = document.getElementById("googleAreaLink");
+    const googleAreaLat = document.getElementById("googleAreaLat");
+    const googleAreaLng = document.getElementById("googleAreaLng");
     const googleMapType = document.getElementById("googleMapType");
     const googleMapZoom = document.getElementById("googleMapZoom");
     const applyGoogleAreaButton = document.getElementById("applyGoogleAreaButton");
@@ -197,7 +203,8 @@
         city: condo.city || "",
         state: condo.state || "",
         image: condo.image || "",
-        googleAreaLink: condo.googleAreaLink || "",
+        googleAreaLat: condo.googleAreaLat || condo.lat || "",
+        googleAreaLng: condo.googleAreaLng || condo.lng || "",
         googleMapType: condo.googleMapType || "k",
         googleMapZoom: condo.googleMapZoom || "18",
         notes: condo.notes || "",
@@ -374,7 +381,8 @@
       document.getElementById("condoCity").value = selected.city || "";
       document.getElementById("condoState").value = selected.state || "";
       document.getElementById("condoNotes").value = selected.notes || "";
-      googleAreaLink.value = selected.googleAreaLink || "";
+      googleAreaLat.value = selected.googleAreaLat || "";
+      googleAreaLng.value = selected.googleAreaLng || "";
       googleMapType.value = selected.googleMapType || "k";
       googleMapZoom.value = selected.googleMapZoom || "18";
       currentImage = selected.image || "";
@@ -390,7 +398,8 @@
       document.getElementById("formSubtitle").textContent = "Preencha os dados principais e adicione a imagem do condomínio.";
       currentImage = "";
       condoImage.value = "";
-      googleAreaLink.value = "";
+      googleAreaLat.value = "";
+      googleAreaLng.value = "";
       googleMapType.value = "k";
       googleMapZoom.value = "18";
       renderImagePreview();
@@ -409,7 +418,8 @@
         city: formValue("condoCity"),
         state: formValue("condoState").toUpperCase(),
         image: currentImage,
-        googleAreaLink: formValue("googleAreaLink"),
+        googleAreaLat: formValue("googleAreaLat"),
+        googleAreaLng: formValue("googleAreaLng"),
         googleMapType: formValue("googleMapType") || "k",
         googleMapZoom: formValue("googleMapZoom") || "18",
         notes: formValue("condoNotes"),
@@ -450,31 +460,28 @@
         address: formValue("condoAddress"),
         city: formValue("condoCity"),
         state: formValue("condoState"),
-        googleAreaLink: formValue("googleAreaLink"),
+        googleAreaLat: formValue("googleAreaLat"),
+        googleAreaLng: formValue("googleAreaLng"),
         googleMapType: formValue("googleMapType") || "k",
         googleMapZoom: formValue("googleMapZoom") || "18",
       };
-      const parsed = parseGoogleArea(selected.googleAreaLink || "");
       const zoom = selected.googleMapZoom || "18";
       const mapType = selected.googleMapType || "k";
       const addressQuery = [selected.address, selected.city, selected.state, "Brasil"].filter(Boolean).join(", ");
-      const query = parsed ? `${parsed.lat},${parsed.lng}` : addressQuery || "Brasil";
+      const lat = normalizeCoordinate(selected.googleAreaLat);
+      const lng = normalizeCoordinate(selected.googleAreaLng);
+      const hasCoordinates = lat && lng;
+      const query = hasCoordinates ? `${lat},${lng}` : addressQuery || "Brasil";
       const encoded = encodeURIComponent(query);
       googleMapFrame.src = `https://www.google.com/maps?q=${encoded}&t=${mapType}&z=${zoom}&output=embed`;
-      googleMapLink.href = parsed
-        ? `https://www.google.com/maps/@${parsed.lat},${parsed.lng},${zoom}z/data=!3m1!1e3`
+      googleMapLink.href = hasCoordinates
+        ? `https://www.google.com/maps/@${lat},${lng},${zoom}z/data=!3m1!1e3`
         : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
     }
 
-    function parseGoogleArea(link) {
-      const text = String(link || "").trim();
-      const atMatch = text.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?),(\d+(?:\.\d+)?)z/);
-      if (atMatch) return { lat: atMatch[1], lng: atMatch[2], zoom: atMatch[3] };
-      const placeMatch = text.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
-      if (placeMatch) return { lat: placeMatch[1], lng: placeMatch[2] };
-      const plainMatch = text.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
-      if (plainMatch) return { lat: plainMatch[1], lng: plainMatch[2] };
-      return null;
+    function normalizeCoordinate(value) {
+      const normalized = String(value || "").trim().replace(",", ".");
+      return /^-?\d+(?:\.\d+)?$/.test(normalized) ? normalized : "";
     }
 
     function handleImageUpload(event) {
@@ -535,6 +542,8 @@
       document.getElementById(id).addEventListener("change", () => updateGoogleMap(null));
     });
     applyGoogleAreaButton.addEventListener("click", () => updateGoogleMap(null));
+    googleAreaLat.addEventListener("change", () => updateGoogleMap(null));
+    googleAreaLng.addEventListener("change", () => updateGoogleMap(null));
     googleMapType.addEventListener("change", () => updateGoogleMap(null));
     googleMapZoom.addEventListener("change", () => updateGoogleMap(null));
 
