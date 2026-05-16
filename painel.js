@@ -160,6 +160,7 @@
     const routePointName = document.getElementById("routePointName");
     const routePointLat = document.getElementById("routePointLat");
     const routePointLng = document.getElementById("routePointLng");
+    const routePointList = document.getElementById("routePointList");
     const addCoordinatePointButton = document.getElementById("addCoordinatePointButton");
     let currentImage = "";
     let routeEditing = false;
@@ -352,9 +353,9 @@
       const condo = activeCondo();
       draftRoute = condo?.patrolRouteGeo?.length ? condo.patrolRouteGeo.map((point) => ({ ...point })) : [];
       mapCanvas.classList.toggle("editing", routeEditing);
-      routeCoordinatePanel.classList.toggle("active", routeEditing);
       editRouteButton.classList.toggle("active", routeEditing);
       editRouteButton.textContent = routeEditing ? "Editando..." : "Editar rota";
+      renderRoutePointList();
       renderMap();
     }
 
@@ -369,10 +370,10 @@
       condo.patrolRoute = projectRoute(condo.patrolRouteGeo).map((point) => [Math.round(point.x), Math.round(point.y)]);
       routeEditing = false;
       mapCanvas.classList.remove("editing");
-      routeCoordinatePanel.classList.remove("active");
       editRouteButton.classList.remove("active");
       editRouteButton.textContent = "Editar rota";
       saveCondominiums();
+      renderRoutePointList();
       renderMap();
     }
 
@@ -384,15 +385,19 @@
         condo.patrolRouteGeo = [];
         saveCondominiums();
       }
+      renderRoutePointList();
       renderMap();
     }
 
     function addRoutePoint(event) {
       event.preventDefault();
-      if (!routeEditing) return;
+      if (!routeEditing) startRouteEditing();
       const lat = normalizeCoordinate(routePointLat.value);
       const lng = normalizeCoordinate(routePointLng.value);
-      if (!lat || !lng) return;
+      if (!lat || !lng) {
+        routePointLat.focus();
+        return;
+      }
       draftRoute.push({
         name: routePointName.value.trim() || `Ponto ${draftRoute.length + 1}`,
         lat,
@@ -401,7 +406,26 @@
       routePointName.value = "";
       routePointLat.value = "";
       routePointLng.value = "";
+      renderRoutePointList();
       renderMap();
+    }
+
+    function renderRoutePointList() {
+      const source = routeEditing ? draftRoute : activeCondo()?.patrolRouteGeo || [];
+      routePointList.replaceChildren();
+      if (!source.length) {
+        const empty = document.createElement("span");
+        empty.className = "route-point-item";
+        empty.textContent = "Nenhum ponto adicionado";
+        routePointList.appendChild(empty);
+        return;
+      }
+      source.forEach((point, index) => {
+        const item = document.createElement("span");
+        item.className = "route-point-item";
+        item.innerHTML = `<b>${String(index + 1).padStart(2, "0")}</b>${point.name || "Ponto"} • ${point.lat}, ${point.lng}`;
+        routePointList.appendChild(item);
+      });
     }
 
     function projectRoute(routeGeo) {
@@ -536,7 +560,12 @@
       googleMapType.value = selected.googleMapType || "k";
       googleMapZoom.value = selected.googleMapZoom || "18";
       currentImage = selected.image || "";
+      routeEditing = false;
+      draftRoute = selected.patrolRouteGeo?.length ? selected.patrolRouteGeo.map((point) => ({ ...point })) : [];
+      editRouteButton.classList.remove("active");
+      editRouteButton.textContent = "Editar rota";
       renderImagePreview();
+      renderRoutePointList();
       updateGoogleMap(selected);
       deleteCondoButton.disabled = condominiums.length <= 1;
     }
@@ -547,12 +576,15 @@
       document.getElementById("formTitle").textContent = "Novo Condomínio";
       document.getElementById("formSubtitle").textContent = "Preencha os dados principais e adicione a imagem do condomínio.";
       currentImage = "";
+      routeEditing = false;
+      draftRoute = [];
       condoImage.value = "";
       googleAreaLat.value = "";
       googleAreaLng.value = "";
       googleMapType.value = "k";
       googleMapZoom.value = "18";
       renderImagePreview();
+      renderRoutePointList();
       updateGoogleMap(null);
       deleteCondoButton.disabled = true;
       renderAllCondos();
@@ -634,7 +666,11 @@
     }
 
     function normalizeCoordinate(value) {
-      const normalized = String(value || "").trim().replace(",", ".");
+      const normalized = String(value || "")
+        .trim()
+        .replace(/\s+/g, "")
+        .replace(/,$/, "")
+        .replace(",", ".");
       return /^-?\d+(?:\.\d+)?$/.test(normalized) ? normalized : "";
     }
 
@@ -706,6 +742,11 @@
     saveRouteButton.addEventListener("click", saveRoute);
     clearRouteButton.addEventListener("click", clearRoute);
     addCoordinatePointButton.addEventListener("click", addRoutePoint);
+    [routePointName, routePointLat, routePointLng].forEach((input) => {
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") addRoutePoint(event);
+      });
+    });
 
     renderAllCondos();
     renderTable();
