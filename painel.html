@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Safeway Monitoramento</title>
-    <link rel="stylesheet" href="painel.css?v=15" />
+    <link rel="stylesheet" href="painel.css?v=16" />
   </head>
   <body>
     <div class="app-shell">
@@ -335,7 +335,7 @@
                   <div class="route-setup-heading">
                     <div>
                       <h3>Rota de ronda por coordenadas</h3>
-                      <p>Cadastre os pontos reais da ronda usando latitude e longitude. A visão geral usa essa rota para desenhar o percurso e comparar com o GPS do vigilante.</p>
+                      <p>Cadastre cada trecho da ronda informando a coordenada inicial e a coordenada final. A visão geral desenha a rota completa a partir desses trechos.</p>
                     </div>
                     <div class="route-actions">
                       <button type="button" id="editRouteButton">Editar rota</button>
@@ -347,18 +347,26 @@
                   <div class="route-coordinate-panel active" id="routeCoordinatePanel">
                     <div class="route-coordinate-fields">
                       <label>
-                        Nome do ponto
-                        <input id="routePointName" placeholder="Portaria, Bloco A, Piscina..." />
+                        Nome da rota
+                        <input id="routePointName" placeholder="Rota 1, Portaria ao Bloco A..." />
                       </label>
                       <label>
-                        Latitude
-                        <input id="routePointLat" inputmode="decimal" placeholder="-15.022387" />
+                        Latitude inicial
+                        <input id="routeStartLat" inputmode="decimal" placeholder="-15.022387" />
                       </label>
                       <label>
-                        Longitude
-                        <input id="routePointLng" inputmode="decimal" placeholder="-38.997905" />
+                        Longitude inicial
+                        <input id="routeStartLng" inputmode="decimal" placeholder="-38.997905" />
                       </label>
-                      <button type="button" id="addCoordinatePointButton">Adicionar ponto</button>
+                      <label>
+                        Latitude final
+                        <input id="routeEndLat" inputmode="decimal" placeholder="-15.022900" />
+                      </label>
+                      <label>
+                        Longitude final
+                        <input id="routeEndLng" inputmode="decimal" placeholder="-38.997500" />
+                      </label>
+                      <button type="button" id="addCoordinatePointButton">Adicionar rota</button>
                     </div>
                     <div class="route-point-list" id="routePointList"></div>
                   </div>
@@ -375,6 +383,6 @@
       </main>
     </div>
 
-    <script src="painel.js?v=15"></script>
+    <script src="painel.js?v=16"></script>
   </body>
 </html>
