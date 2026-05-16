@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Safeway Monitoramento</title>
-    <link rel="stylesheet" href="./painel.css?v=1" />
+    <link rel="stylesheet" href="./painel.css?v=2" />
   </head>
   <body>
     <div class="app-shell">
@@ -298,8 +298,33 @@
 
                 <div class="google-map-block">
                   <div>
-                    <h3>Imagem real pelo Google</h3>
-                    <p>O mapa abaixo usa o endereço cadastrado. Para Street View/foto automática do prédio, vamos precisar de uma chave da API do Google.</p>
+                    <h3>Área do condomínio no Google</h3>
+                    <p>Cole o link do Google Maps da área exata ou deixe vazio para usar o endereço. Use o zoom para aproximar no condomínio.</p>
+                    <label class="map-link-field">
+                      Link do Google Maps
+                      <input id="googleAreaLink" placeholder="Cole aqui o link do Google Maps" />
+                    </label>
+                    <div class="map-options">
+                      <label>
+                        Visual
+                        <select id="googleMapType">
+                          <option value="k">Satélite</option>
+                          <option value="m">Mapa</option>
+                        </select>
+                      </label>
+                      <label>
+                        Zoom
+                        <select id="googleMapZoom">
+                          <option value="16">16</option>
+                          <option value="17">17</option>
+                          <option value="18" selected>18</option>
+                          <option value="19">19</option>
+                          <option value="20">20</option>
+                          <option value="21">21</option>
+                        </select>
+                      </label>
+                    </div>
+                    <button class="ghost-button" type="button" id="applyGoogleAreaButton">Aplicar área</button>
                   </div>
                   <iframe id="googleMapFrame" title="Mapa Google do condomínio" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
                   <a id="googleMapLink" href="https://www.google.com/maps" target="_blank" rel="noreferrer">Abrir no Google Maps</a>
@@ -316,6 +341,6 @@
       </main>
     </div>
 
-    <script src="./painel.js?v=1"></script>
+    <script src="./painel.js?v=2"></script>
   </body>
 </html>
