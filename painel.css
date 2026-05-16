@@ -518,11 +518,7 @@ h1 {
   font-weight: 800;
 }
 
-.admin-condo-card[data-status="Em atenÃ§Ã£o"] span {
-  color: var(--amber);
-}
-
-.admin-condo-card[data-status="Offline"] span {
+.admin-condo-card[data-status="Sem dispositivo"] span {
   color: #7f91a5;
 }
 
@@ -583,7 +579,8 @@ h1 {
   grid-column: 1 / -1;
 }
 
-.location-picker {
+.media-grid,
+.google-map-block {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
   gap: 14px;
@@ -595,84 +592,73 @@ h1 {
   background: #0a1724;
 }
 
-.location-picker h3 {
+.media-grid h3,
+.google-map-block h3 {
   margin-bottom: 7px;
   font-size: 15px;
 }
 
-.picker-map {
+.upload-box {
+  display: grid;
+  min-height: 44px;
+  margin: 14px 0 10px;
+  place-items: center;
+  border: 1px dashed #2d5f93;
+  border-radius: 8px;
+  background: rgba(18, 104, 255, 0.08);
+  color: #8fc0ff;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.upload-box input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.image-preview {
   position: relative;
   min-height: 210px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background:
-    radial-gradient(circle at 28% 34%, rgba(18, 104, 255, 0.18), transparent 22%),
-    radial-gradient(circle at 72% 65%, rgba(34, 199, 106, 0.16), transparent 24%),
-    #081622;
+  background: #081622;
 }
 
-.picker-grid {
+.image-preview span {
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-  background-size: 32px 32px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
 }
 
-.picker-map::before,
-.picker-map::after {
-  content: "";
-  position: absolute;
-  height: 24px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.13);
-  transform: rotate(-12deg);
+.image-preview img {
+  width: 100%;
+  height: 100%;
+  min-height: 210px;
+  object-fit: cover;
 }
 
-.picker-map::before {
-  left: 8%;
-  right: 12%;
-  top: 34%;
+.google-map-block {
+  grid-template-columns: 260px minmax(0, 1fr);
 }
 
-.picker-map::after {
-  left: 14%;
-  right: 7%;
-  bottom: 26%;
-  transform: rotate(16deg);
+.google-map-block iframe {
+  width: 100%;
+  min-height: 240px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #081622;
 }
 
-.picker-map strong,
-.picker-map small {
-  position: absolute;
-  z-index: 1;
-  color: #d8e6f4;
-}
-
-.picker-map strong {
-  top: 12px;
-  left: 12px;
-}
-
-.picker-map small {
-  right: 12px;
-  bottom: 12px;
-}
-
-.picker-pin {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 2;
-  width: 22px;
-  height: 22px;
-  border: 4px solid white;
-  border-radius: 50% 50% 50% 0;
-  background: var(--red);
-  box-shadow: 0 0 0 8px rgba(255, 77, 99, 0.14);
-  transform: translate(-50%, -100%) rotate(-45deg);
+.google-map-block a {
+  grid-column: 2;
+  color: #8fc0ff;
+  text-decoration: none;
+  font-weight: 800;
 }
 
 .primary-button,
@@ -1322,8 +1308,13 @@ h1 {
 
   .admin-tools,
   .form-grid,
-  .location-picker {
+  .media-grid,
+  .google-map-block {
     grid-template-columns: 1fr;
+  }
+
+  .google-map-block a {
+    grid-column: auto;
   }
 
   .map-canvas {
