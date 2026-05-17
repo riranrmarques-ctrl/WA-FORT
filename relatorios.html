@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>WA FORT | Relatórios</title>
+
+  <link rel="stylesheet" href="vigilantes.css" />
+</head>
+
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">WA</div>
+      <div>
+        <strong>WA FORT</strong>
+        <span>MONITORAMENTO</span>
+      </div>
+    </div>
+
+    <nav class="menu">
+      <a href="painel.html">⌂ Visão Geral</a>
+      <a href="condominios.html">▦ Condomínios</a>
+      <a href="vigilantes.html">♙ Vigilantes</a>
+      <a href="ocorrencias.html">△ Ocorrências</a>
+      <a href="relatorios.html" class="ativo">▤ Relatórios</a>
+      <a href="alertas.html">○ Alertas</a>
+      <a href="configuracoes.html">⚙ Configurações</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="topo">
+      <div>
+        <h1>Relatórios</h1>
+        <p>Consulte as rotas concluídas por dia, semana ou mês.</p>
+      </div>
+    </header>
+
+    <section class="cards-resumo">
+      <div class="card-resumo">
+        <span>Rotas Concluídas</span>
+        <strong>0</strong>
+      </div>
+
+      <div class="card-resumo">
+        <span>Tempo Médio</span>
+        <strong>0min</strong>
+      </div>
+
+      <div class="card-resumo">
+        <span>Vigilantes Ativos</span>
+        <strong>0</strong>
+      </div>
+
+      <div class="card-resumo">
+        <span>Ocorrências no Período</span>
+        <strong>0</strong>
+      </div>
+    </section>
+
+    <section class="area-vigilantes">
+      <div class="barra-lista">
+        <h2>Consulta de rotas concluídas</h2>
+      </div>
+
+      <div style="padding: 20px; border-bottom: 1px solid #173552;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 14px; align-items: end;">
+          
+          <label style="color:#91a7bd; font-size:14px;">
+            Tipo de filtro
+            <select style="width:100%; margin-top:8px; padding:14px; border-radius:10px; border:1px solid #25415f; background:#071421; color:white;">
+              <option value="dia">Dia</option>
+              <option value="semana">Semana</option>
+              <option value="mes">Mês</option>
+            </select>
+          </label>
+
+          <label style="color:#91a7bd; font-size:14px;">
+            Data inicial
+            <input type="date" style="width:100%; margin-top:8px; padding:14px; border-radius:10px; border:1px solid #25415f; background:#071421; color:white;" />
+          </label>
+
+          <label style="color:#91a7bd; font-size:14px;">
+            Data final
+            <input type="date" style="width:100%; margin-top:8px; padding:14px; border-radius:10px; border:1px solid #25415f; background:#071421; color:white;" />
+          </label>
+
+          <button class="btn-primary" type="button">
+            Consultar
+          </button>
+        </div>
+      </div>
+
+      <div style="padding: 20px;">
+        <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr; gap: 12px; color:#91a7bd; font-size:14px; padding: 0 0 14px; border-bottom:1px solid #173552;">
+          <strong>Rota</strong>
+          <strong>Vigilante</strong>
+          <strong>Condomínio</strong>
+          <strong>Data</strong>
+          <strong>Tempo</strong>
+        </div>
+
+        <div style="padding: 40px; text-align:center; color:#91a7bd; border:1px dashed #25415f; border-radius:14px; margin-top:20px;">
+          Nenhuma rota concluída encontrada nesse período.
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
