@@ -53,6 +53,7 @@
     const mapCanvas = document.querySelector(".map-canvas");
     const topbar = document.getElementById("topbar");
     const overviewPreciseMap = document.getElementById("overviewPreciseMap");
+    const overviewGoogleMapFrame = document.getElementById("overviewGoogleMapFrame");
     const overviewCondoName = document.getElementById("overviewCondoName");
     const activeTable = document.getElementById("activeTable");
     const checkpointHistoryEl = document.getElementById("checkpointHistory");
@@ -359,8 +360,7 @@
           <div class="condo-photo"></div>
           <div>
             <strong>Nenhum condomínio cadastrado</strong>
-            <span>Crie o primeiro cadastro</span>
-            <small>A rota e o mapa aparecerão depois</small>
+            <small>Crie o primeiro cadastro para liberar o mapa</small>
           </div>
         `;
         condoList.appendChild(empty);
@@ -368,13 +368,14 @@
       }
       condominiums.slice(0, 5).forEach((condo) => {
         const card = document.createElement("article");
-        card.className = `condo-card${condo.id === selectedCondoId ? " active" : ""}${statusClass(condo)}`;
+        const photo = condo.image ? `<img src="${condo.image}" alt="${condo.name}" />` : "";
+        const routesCount = condo.patrolRouteSegments?.length || 0;
+        card.className = `condo-card${condo.id === selectedCondoId ? " active" : ""}`;
         card.innerHTML = `
-          <div class="condo-photo"></div>
+          <div class="condo-photo">${photo}</div>
           <div>
             <strong>${condo.name}</strong>
-            <span>${deviceStatus(condo)}</span>
-            <small>${condo.city || "Cidade não informada"} ${condo.state || ""}</small>
+            <small>${routesCount} ${routesCount === 1 ? "rota cadastrada" : "rotas cadastradas"}</small>
           </div>
         `;
         card.addEventListener("click", () => {
@@ -665,11 +666,26 @@
     function updateOverviewCondoMap() {
       const condo = activeCondo();
       if (!condo) {
+        overviewGoogleMapFrame.removeAttribute("src");
         lastOverviewMapSrc = "";
         mapCanvas.classList.remove("precise");
         clearPreciseMapOverlays();
         overviewCondoName.textContent = "Nenhum condomínio cadastrado";
         return;
+      }
+      const zoom = condo.googleMapZoom || "18";
+      const mapType = condo.googleMapType || "k";
+      const lat = normalizeCoordinate(condo.googleAreaLat);
+      const lng = normalizeCoordinate(condo.googleAreaLng);
+      const addressQuery = [condo.address, condo.city, condo.state, "Brasil"].filter(Boolean).join(", ");
+      const encodedAddress = encodeURIComponent(addressQuery || "Brasil");
+      const nextSrc =
+        lat && lng
+          ? `https://www.google.com/maps?ll=${lat},${lng}&t=${mapType}&z=${zoom}&output=embed`
+          : `https://www.google.com/maps?q=${encodedAddress}&t=${mapType}&z=${zoom}&output=embed`;
+      if (overviewGoogleMapFrame.src !== nextSrc && lastOverviewMapSrc !== nextSrc) {
+        overviewGoogleMapFrame.src = nextSrc;
+        lastOverviewMapSrc = nextSrc;
       }
       overviewCondoName.textContent = condo.name || "Condomínio";
       renderPreciseOverviewMap(condo);
