@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>WA Fort | Vigilantes</title>
+
+  <link rel="stylesheet" href="vigilantes.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="vigilantes.js" defer></script>
+</head>
+
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">WA</div>
+      <div>
+        <strong>WA FORT</strong>
+        <span>MONITORAMENTO</span>
+      </div>
+    </div>
+
+    <nav class="menu">
+      <a href="supervisao.html">⌂ Visão Geral</a>
+      <a href="condominios.html">▦ Condomínios</a>
+      <a href="vigilantes.html" class="ativo">♙ Vigilantes</a>
+      <a href="ocorrencias.html">△ Ocorrências</a>
+      <a href="relatorios.html">▤ Relatórios</a>
+      <a href="alertas.html">○ Alertas</a>
+      <a href="configuracoes.html">⚙ Configurações</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="topo">
+      <div>
+        <h1>Vigilantes</h1>
+        <p>Cadastre dispositivos, agentes e organize a troca automática de turno.</p>
+      </div>
+
+      <button class="btn-primary" id="btnNovoVigilante">
+        + Criar Vigilante
+      </button>
+    </header>
+
+    <section class="cards-resumo">
+      <div class="card-resumo">
+        <span>Total de Vigilantes</span>
+        <strong id="totalVigilantes">0</strong>
+      </div>
+
+      <div class="card-resumo">
+        <span>Dispositivos Vinculados</span>
+        <strong id="totalDispositivos">0</strong>
+      </div>
+
+      <div class="card-resumo">
+        <span>Agentes em Turno</span>
+        <strong id="totalAgentes">0</strong>
+      </div>
+
+      <div class="card-resumo">
+        <span>Aguardando Cadastro</span>
+        <strong id="totalAguardando">0</strong>
+      </div>
+    </section>
+
+    <section class="area-vigilantes">
+      <div class="barra-lista">
+        <h2>Vigilantes cadastrados</h2>
+
+        <div class="busca">
+          <input type="text" id="campoBusca" placeholder="Buscar por código, dispositivo ou agente..." />
+        </div>
+      </div>
+
+      <div class="lista-vigilantes" id="listaVigilantes">
+        <div class="vazio">
+          Nenhum vigilante cadastrado ainda.
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" id="modalVigilante">
+    <div class="modal-card">
+      <div class="modal-topo">
+        <h2 id="modalTitulo">Novo Vigilante</h2>
+        <button id="btnFecharModal">×</button>
+      </div>
+
+      <form id="formVigilante">
+        <input type="hidden" id="vigilanteId" />
+
+        <label>
+          Código fixo
+          <input type="text" id="codigoVigilante" readonly />
+        </label>
+
+        <label>
+          Nome do dispositivo
+          <input type="text" id="nomeDispositivo" placeholder="Ex: Celular Portaria 01" />
+        </label>
+
+        <label>
+          Condomínio
+          <input type="text" id="nomeCondominio" placeholder="Ex: Moradas da Praia" />
+        </label>
+
+        <div class="linha-form">
+          <label>
+            Agente Turno 1
+            <input type="text" id="agenteTurno1" placeholder="Nome do agente" />
+          </label>
+
+          <label>
+            Início Turno 1
+            <input type="time" id="inicioTurno1" value="07:00" />
+          </label>
+        </div>
+
+        <div class="linha-form">
+          <label>
+            Agente Turno 2
+            <input type="text" id="agenteTurno2" placeholder="Nome do agente" />
+          </label>
+
+          <label>
+            Início Turno 2
+            <input type="time" id="inicioTurno2" value="19:00" />
+          </label>
+        </div>
+
+        <div class="acoes-modal">
+          <button type="button" class="btn-secundario" id="btnCancelar">
+            Cancelar
+          </button>
+
+          <button type="submit" class="btn-primary">
+            Salvar Vigilante
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
