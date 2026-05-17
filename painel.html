@@ -7,27 +7,67 @@
     <link rel="stylesheet" href="painel.css?v=25" />
   </head>
   <body>
-    <div class="app-shell">
-      <aside class="sidebar">
-        <div class="brand">
-          <div class="brand-shield"><img src="logo.png" alt="WA FORT" /></div>
-          <div>
-            <strong>WA FORT</strong>
-            <span>MONITORAMENTO</span>
-          </div>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-shield">
+          <img src="logo.png" alt="WA FORT" />
         </div>
 
-        <nav class="nav-list" aria-label="Navegação principal">
-          <button class="nav-item active" type="button" data-view-button="overview"><span>⌂</span>Visão Geral</button>
-          <button class="nav-item" type="button" data-view-button="condominiums"><span>▥</span>Condomínios</button>
-          <button class="vigilantes.html" type="button"><span>♙</span>Vigilantes</button>
-          <button class="nav-item" type="button"><span>△</span>Ocorrências</button>
-          <button class="nav-item" type="button"><span>▤</span>Relatórios</button>
-          <button class="nav-item" type="button"><span>◌</span>Alertas</button>
-          <button class="nav-item" type="button"><span>⚙</span>Configurações</button>
-        </nav>
+        <div>
+          <strong>WA FORT</strong>
+          <span>MONITORAMENTO</span>
+        </div>
+      </div>
 
-      </aside>
+      <nav class="nav-list" aria-label="Navegação principal">
+
+        <button
+          class="nav-item active"
+          type="button"
+          data-view-button="overview"
+        >
+          <span>⌂</span>
+          Visão Geral
+        </button>
+
+        <button
+          class="nav-item"
+          type="button"
+          data-view-button="condominiums"
+        >
+          <span>▥</span>
+          Condomínios
+        </button>
+
+        <a class="nav-item" href="vigilantes.html">
+          <span>♙</span>
+          Vigilantes
+        </a>
+
+        <button class="nav-item" type="button">
+          <span>△</span>
+          Ocorrências
+        </button>
+
+        <button class="nav-item" type="button">
+          <span>▤</span>
+          Relatórios
+        </button>
+
+        <button class="nav-item" type="button">
+          <span>◌</span>
+          Alertas
+        </button>
+
+        <button class="nav-item" type="button">
+          <span>⚙</span>
+          Configurações
+        </button>
+
+      </nav>
+
+    </aside>
 
       <main class="dashboard">
         <header class="topbar" id="topbar">
