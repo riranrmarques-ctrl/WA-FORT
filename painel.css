@@ -769,7 +769,7 @@ h1 {
 
 .condo-panel,
 .details-panel {
-  padding: 14px;
+  padding: 12px;
 }
 
 .panel-title {
@@ -789,14 +789,14 @@ h1 {
 
 .search-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 48px;
-  gap: 10px;
-  margin-bottom: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .search-row label,
 .search-row button {
-  min-height: 50px;
+  min-height: 44px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #0a1724;
@@ -820,40 +820,60 @@ h1 {
 
 .condo-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   max-height: 614px;
   overflow: auto;
-  padding-right: 4px;
+  padding-right: 0;
 }
 
 .condo-card {
   position: relative;
   display: grid;
-  grid-template-columns: 54px minmax(0, 1fr);
-  gap: 10px;
-  min-height: 74px;
-  padding: 9px;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 11px;
+  align-items: center;
+  min-height: 76px;
+  padding: 10px;
   border: 1px solid transparent;
   border-radius: 8px;
   background: #0a1724;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
 }
 
 .condo-card.active {
   border-color: var(--blue);
-  background: #102139;
-  box-shadow: inset 4px 0 0 var(--blue);
+  background: linear-gradient(135deg, rgba(18, 104, 255, 0.22), rgba(8, 19, 30, 0.95));
+  box-shadow: inset 3px 0 0 var(--blue);
 }
 
-.condo-card.attention {
-  box-shadow: inset 4px 0 0 var(--amber);
+.condo-card:hover {
+  border-color: rgba(76, 144, 255, 0.52);
+  transform: translateY(-1px);
 }
 
 .condo-photo {
+  width: 58px;
+  height: 58px;
   border-radius: 7px;
   background:
     linear-gradient(145deg, rgba(255,255,255,.18), transparent),
     linear-gradient(90deg, #6a7d88, #253546);
   overflow: hidden;
+}
+
+.condo-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.condo-photo:has(img)::before,
+.condo-photo:has(img)::after {
+  display: none;
 }
 
 .condo-photo::before,
@@ -874,34 +894,20 @@ h1 {
 }
 
 .condo-card strong,
-.condo-card span,
 .condo-card small {
   display: block;
 }
 
 .condo-card strong {
   overflow: hidden;
-  margin-top: 5px;
+  margin-top: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.condo-card span {
-  margin: 4px 0;
-  color: var(--green);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.condo-card.offline span {
-  color: #7f91a5;
-}
-
-.condo-card.attention span {
-  color: var(--amber);
+  font-size: 15px;
 }
 
 .condo-card small {
+  margin-top: 5px;
   color: var(--muted);
   font-size: 12px;
 }
@@ -1126,8 +1132,24 @@ h1 {
   display: none;
 }
 
+.overview-google-map {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  filter: saturate(0.95) brightness(0.82);
+  pointer-events: none;
+}
+
 .map-canvas.precise .overview-precise-map {
   display: block;
+}
+
+.map-canvas.precise .overview-google-map,
+.map-canvas.empty .overview-google-map {
+  display: none;
 }
 
 .map-canvas.precise svg {
