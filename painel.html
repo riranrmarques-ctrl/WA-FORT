@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Safeway Monitoramento</title>
-    <link rel="stylesheet" href="painel.css?v=16" />
+    <link rel="stylesheet" href="painel.css?v=25" />
   </head>
   <body>
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-shield">◇</div>
+          <div class="brand-shield"><img src="logo.png" alt="Safeway" /></div>
           <div>
             <strong>SAFEWAY</strong>
             <span>MONITORAMENTO</span>
@@ -27,35 +27,21 @@
           <button class="nav-item" type="button"><span>⚙</span>Configurações</button>
         </nav>
 
-        <section class="quick-filters">
-          <h2>Filtros rápidos</h2>
-          <button type="button">Todos os condomínios <span>⌄</span></button>
-          <button type="button">Todos os turnos <span>⌄</span></button>
-          <button type="button">Todos os status <span>⌄</span></button>
-        </section>
-
-        <div class="last-update">
-          <span>Última atualização</span>
-          <strong id="sidebarClock">00:00:00</strong>
-          <small>Atualizando em tempo real <i></i></small>
-        </div>
       </aside>
 
       <main class="dashboard">
-        <header class="topbar">
+        <header class="topbar" id="topbar">
           <div>
             <h1>Supervisão em Tempo Real</h1>
             <p>Acompanhe em tempo real os condomínios e vigilantes ativos.</p>
           </div>
 
-          <div class="operator">
-            <button class="bell" type="button" title="Notificações">♧<b>0</b></button>
-            <div class="operator-photo"></div>
+          <div class="top-status">
             <div>
-              <strong>Supervisor</strong>
-              <span>Central de Monitoramento</span>
+              <span>Última atualização</span>
+              <strong id="sidebarClock">00:00:00</strong>
+              <small><i></i>Atualizando em tempo real</small>
             </div>
-            <button class="chevron" type="button" title="Abrir perfil">⌄</button>
           </div>
         </header>
 
@@ -126,13 +112,12 @@
           <section class="map-panel panel">
             <div class="map-header">
               <div>
-                <h2><span id="overviewCondoName">Nenhum condomínio cadastrado</span> <span id="overviewCondoStatus">Sem dispositivo</span></h2>
-                <p id="overviewCondoAddress">Cadastre um condomínio para iniciar o monitoramento.</p>
+                <h2 id="overviewCondoName">Nenhum condomínio cadastrado</h2>
               </div>
             </div>
 
             <div class="map-canvas" aria-label="Mapa operacional do condomínio">
-              <iframe id="overviewGoogleMapFrame" class="overview-google-map" title="Mapa real do condomínio" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allow="fullscreen" allowfullscreen></iframe>
+              <div id="overviewPreciseMap" class="overview-precise-map" aria-label="Mapa preciso por coordenadas"></div>
               <svg viewBox="0 0 940 520" preserveAspectRatio="none" role="img" aria-label="Mapa com rota de vigilantes">
                 <defs>
                   <linearGradient id="water" x1="0" x2="1">
@@ -156,8 +141,6 @@
                 <g id="mapCheckpoints"></g>
                 <g id="mapGuards"></g>
               </svg>
-
-              <div class="map-badge">⌂ Sem portaria definida</div>
             </div>
 
             <div class="map-legend">
@@ -169,9 +152,8 @@
             </div>
 
             <div class="active-table">
-              <h2>Vigilantes Ativos no Condomínio</h2>
+              <h2>Histórico de Rotas Concluídas do Dia</h2>
               <div class="table" id="activeTable"></div>
-              <button class="wide-button" type="button">Ver histórico de rotas do condomínio</button>
             </div>
           </section>
 
@@ -180,17 +162,17 @@
               <h2>Detalhes do Vigilante</h2>
             </div>
             <div class="guard-profile">
-              <div class="profile-number">01</div>
+              <div class="profile-number" id="detailRouteNumber">--</div>
               <div>
-                <strong>Nenhum vigilante vinculado</strong>
-                <span>Aguardando cadastro</span>
-                <small>Início da ronda: --:--</small>
+                <strong id="detailGuardName">Nenhum vigilante vinculado</strong>
+                <span id="detailGuardStatus">Selecione uma rota no mapa</span>
+                <small id="detailRouteName">Rota: --</small>
               </div>
             </div>
 
             <section class="detail-section">
               <h3>Percurso Atual</h3>
-              <p>Nenhum percurso em andamento</p>
+              <p id="detailRoutePath">Nenhum percurso selecionado</p>
               <div class="progress-label">
                 <span>Progresso do percurso</span>
                 <strong id="detailProgressText">0%</strong>
@@ -198,8 +180,8 @@
               <div class="progress-track"><i id="detailProgressBar"></i></div>
               <div class="next-stop">
                 <span>Próximo ponto de controle</span>
-                <strong>Nenhum ponto definido</strong>
-                <time>--:--</time>
+                <strong id="detailNextPoint">Nenhum ponto definido</strong>
+                <time id="detailEta">--:--</time>
               </div>
             </section>
 
@@ -234,23 +216,22 @@
                   <span>⌕</span>
                   <input id="adminSearch" type="search" placeholder="Buscar condomínio..." />
                 </label>
-                <select id="statusFilter" aria-label="Filtrar por vínculo de dispositivo">
-                  <option value="Todos">Todos</option>
-                  <option value="Com dispositivo">Com dispositivo</option>
-                  <option value="Sem dispositivo">Sem dispositivo</option>
-                </select>
               </div>
               <div class="admin-condo-list" id="adminCondoList"></div>
             </section>
 
-            <section class="panel condo-editor">
+            <div class="editor-overlay" id="condoEditorOverlay" aria-hidden="true">
+            <section class="panel condo-editor" role="dialog" aria-modal="true" aria-labelledby="formTitle">
               <form id="condoForm">
                 <div class="editor-title">
                   <div>
                     <h2 id="formTitle">Novo Condomínio</h2>
                     <p id="formSubtitle">Preencha os dados principais e adicione a imagem do condomínio.</p>
                   </div>
-                  <button class="ghost-button" type="button" id="resetFormButton">Limpar</button>
+                  <div class="editor-actions">
+                    <button class="ghost-button" type="button" id="resetFormButton">Limpar</button>
+                    <button class="ghost-button icon-button" type="button" id="closeEditorButton" title="Fechar">×</button>
+                  </div>
                 </div>
 
                 <div class="form-grid">
@@ -325,6 +306,11 @@
                         </select>
                       </label>
                     </div>
+                    <label class="api-key-field">
+                      Chave Google Maps API para precisão
+                      <input id="googleMapsApiKey" autocomplete="off" placeholder="Cole a chave da Maps JavaScript API" />
+                    </label>
+                    <small class="api-key-note" id="googleMapsApiStatus">Sem chave: o painel usa prévia visual aproximada.</small>
                     <button class="ghost-button" type="button" id="applyGoogleAreaButton">Aplicar coordenadas</button>
                   </div>
                   <iframe id="googleMapFrame" title="Mapa Google do condomínio" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allow="fullscreen" allowfullscreen></iframe>
@@ -349,6 +335,10 @@
                       <label>
                         Nome da rota
                         <input id="routePointName" placeholder="Rota 1, Portaria ao Bloco A..." />
+                      </label>
+                      <label>
+                        Vigilante responsável
+                        <input id="routeGuardName" placeholder="Nome do vigilante" />
                       </label>
                       <label>
                         Latitude inicial
@@ -378,11 +368,12 @@
                 </div>
               </form>
             </section>
+            </div>
           </div>
         </section>
       </main>
     </div>
 
-    <script src="painel.js?v=16"></script>
+    <script src="painel.js?v=25"></script>
   </body>
 </html>
