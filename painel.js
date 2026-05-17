@@ -9,6 +9,7 @@
     };
 
     const storageKey = "safeway.condominiums.v2";
+    const googleMapsApiKeyStorageKey = "safeway.googleMapsApiKey.v1";
     const defaultCondos = [];
 
     const defaultRoute = [
@@ -36,6 +37,8 @@
 
     const guards = [];
 
+    const completedRoutes = [];
+
     const checkpointHistory = [];
 
     let tick = 0;
@@ -48,14 +51,15 @@
     const mapCheckpoints = document.getElementById("mapCheckpoints");
     const mapGuards = document.getElementById("mapGuards");
     const mapCanvas = document.querySelector(".map-canvas");
-    const overviewGoogleMapFrame = document.getElementById("overviewGoogleMapFrame");
+    const topbar = document.getElementById("topbar");
+    const overviewPreciseMap = document.getElementById("overviewPreciseMap");
     const overviewCondoName = document.getElementById("overviewCondoName");
-    const overviewCondoStatus = document.getElementById("overviewCondoStatus");
-    const overviewCondoAddress = document.getElementById("overviewCondoAddress");
     const activeTable = document.getElementById("activeTable");
     const checkpointHistoryEl = document.getElementById("checkpointHistory");
     const adminCondoList = document.getElementById("adminCondoList");
     const condoForm = document.getElementById("condoForm");
+    const condoEditorOverlay = document.getElementById("condoEditorOverlay");
+    const closeEditorButton = document.getElementById("closeEditorButton");
     const adminSearch = document.getElementById("adminSearch");
     const statusFilter = document.getElementById("statusFilter");
     const condoImage = document.getElementById("condoImage");
@@ -67,6 +71,8 @@
     const googleAreaLng = document.getElementById("googleAreaLng");
     const googleMapType = document.getElementById("googleMapType");
     const googleMapZoom = document.getElementById("googleMapZoom");
+    const googleMapsApiKey = document.getElementById("googleMapsApiKey");
+    const googleMapsApiStatus = document.getElementById("googleMapsApiStatus");
     const applyGoogleAreaButton = document.getElementById("applyGoogleAreaButton");
     const deleteCondoButton = document.getElementById("deleteCondoButton");
     const editRouteButton = document.getElementById("editRouteButton");
@@ -74,16 +80,29 @@
     const clearRouteButton = document.getElementById("clearRouteButton");
     const routeCoordinatePanel = document.getElementById("routeCoordinatePanel");
     const routePointName = document.getElementById("routePointName");
+    const routeGuardName = document.getElementById("routeGuardName");
     const routeStartLat = document.getElementById("routeStartLat");
     const routeStartLng = document.getElementById("routeStartLng");
     const routeEndLat = document.getElementById("routeEndLat");
     const routeEndLng = document.getElementById("routeEndLng");
     const routePointList = document.getElementById("routePointList");
     const addCoordinatePointButton = document.getElementById("addCoordinatePointButton");
+    const detailRouteNumber = document.getElementById("detailRouteNumber");
+    const detailGuardName = document.getElementById("detailGuardName");
+    const detailGuardStatus = document.getElementById("detailGuardStatus");
+    const detailRouteName = document.getElementById("detailRouteName");
+    const detailRoutePath = document.getElementById("detailRoutePath");
+    const detailNextPoint = document.getElementById("detailNextPoint");
+    const detailEta = document.getElementById("detailEta");
     let currentImage = "";
     let routeEditing = false;
     let draftRoute = [];
     let lastOverviewMapSrc = "";
+    let selectedRouteIndex = 0;
+    let googleMapsApiPromise = null;
+    let preciseMap = null;
+    let preciseMapMarkers = [];
+    let preciseMapLines = [];
 
     function svg(tag, attrs = {}) {
       const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
@@ -155,6 +174,9 @@
         return segments
           .map((segment, index) => ({
             name: segment.name || `Rota ${index + 1}`,
+            guardName: segment.guardName || "",
+            guardStatus: segment.guardStatus || "Aguardando cadastro",
+            progress: Number.isFinite(Number(segment.progress)) ? Number(segment.progress) : 0,
             startLat: normalizeCoordinate(segment.startLat),
             startLng: normalizeCoordinate(segment.startLng),
             endLat: normalizeCoordinate(segment.endLat),
@@ -168,6 +190,9 @@
         const next = legacyPoints[index + 1];
         return {
           name: `Rota ${index + 1}`,
+          guardName: "",
+          guardStatus: "Aguardando cadastro",
+          progress: 0,
           startLat: normalizeCoordinate(point.lat),
           startLng: normalizeCoordinate(point.lng),
           endLat: normalizeCoordinate(next.lat),
@@ -198,8 +223,122 @@
       localStorage.setItem(storageKey, JSON.stringify(condominiums));
     }
 
+    function openCondoEditor() {
+      condoEditorOverlay.classList.add("open");
+      condoEditorOverlay.setAttribute("aria-hidden", "false");
+    }
+
+    function closeCondoEditor() {
+      condoEditorOverlay.classList.remove("open");
+      condoEditorOverlay.setAttribute("aria-hidden", "true");
+    }
+
     function activeCondo() {
       return condominiums.find((condo) => condo.id === selectedCondoId) || condominiums[0] || null;
+    }
+
+    function currentGoogleMapsApiKey() {
+      return (googleMapsApiKey.value || localStorage.getItem(googleMapsApiKeyStorageKey) || "").trim();
+    }
+
+    function saveGoogleMapsApiKey() {
+      const key = googleMapsApiKey.value.trim();
+      if (key) {
+        localStorage.setItem(googleMapsApiKeyStorageKey, key);
+        googleMapsApiStatus.textContent = "Chave salva. O painel tentará usar o modo preciso.";
+      } else {
+        localStorage.removeItem(googleMapsApiKeyStorageKey);
+        googleMapsApiStatus.textContent = "Sem chave: o painel usa prévia visual aproximada.";
+      }
+      googleMapsApiPromise = null;
+      preciseMap = null;
+      renderPreciseOverviewMap(activeCondo());
+    }
+
+    function loadGoogleMapsApi() {
+      const key = currentGoogleMapsApiKey();
+      if (!key) return Promise.resolve(false);
+      if (window.google?.maps) return Promise.resolve(true);
+      if (googleMapsApiPromise) return googleMapsApiPromise;
+      googleMapsApiStatus.textContent = "Carregando modo preciso do Google Maps...";
+      googleMapsApiPromise = new Promise((resolve) => {
+        window.__safewayGoogleMapsReady = () => resolve(true);
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&callback=__safewayGoogleMapsReady&v=weekly`;
+        script.async = true;
+        script.defer = true;
+        script.onerror = () => resolve(false);
+        document.head.appendChild(script);
+      });
+      return googleMapsApiPromise;
+    }
+
+    function clearPreciseMapOverlays() {
+      preciseMapMarkers.forEach((marker) => marker.setMap(null));
+      preciseMapLines.forEach((line) => line.setMap(null));
+      preciseMapMarkers = [];
+      preciseMapLines = [];
+    }
+
+    async function renderPreciseOverviewMap(condo) {
+      const lat = normalizeCoordinate(condo?.googleAreaLat);
+      const lng = normalizeCoordinate(condo?.googleAreaLng);
+      const hasApi = await loadGoogleMapsApi();
+      if (!hasApi || !lat || !lng) {
+        mapCanvas.classList.remove("precise");
+        if (currentGoogleMapsApiKey()) googleMapsApiStatus.textContent = "Não foi possível carregar a API. Confira a chave e o domínio liberado.";
+        return;
+      }
+
+      const center = { lat: Number(lat), lng: Number(lng) };
+      const mapTypeId = condo.googleMapType === "m" ? "roadmap" : "satellite";
+      mapCanvas.classList.add("precise");
+      googleMapsApiStatus.textContent = "Modo preciso ativo: rotas desenhadas dentro do Google Maps.";
+
+      if (!preciseMap) {
+        preciseMap = new google.maps.Map(overviewPreciseMap, {
+          center,
+          zoom: Number(condo.googleMapZoom || 18),
+          mapTypeId,
+          disableDefaultUI: true,
+          clickableIcons: false,
+          gestureHandling: "none",
+        });
+      } else {
+        preciseMap.setCenter(center);
+        preciseMap.setZoom(Number(condo.googleMapZoom || 18));
+        preciseMap.setMapTypeId(mapTypeId);
+      }
+
+      clearPreciseMapOverlays();
+      (condo.patrolRouteSegments || []).forEach((segment, index) => {
+        const start = {
+          lat: Number(normalizeCoordinate(segment.startLat)),
+          lng: Number(normalizeCoordinate(segment.startLng)),
+        };
+        const end = {
+          lat: Number(normalizeCoordinate(segment.endLat)),
+          lng: Number(normalizeCoordinate(segment.endLng)),
+        };
+        if (!Number.isFinite(start.lat) || !Number.isFinite(start.lng) || !Number.isFinite(end.lat) || !Number.isFinite(end.lng)) return;
+        const line = new google.maps.Polyline({
+          map: preciseMap,
+          path: [start, end],
+          strokeColor: colors.blue,
+          strokeOpacity: 0.95,
+          strokeWeight: 5,
+        });
+        line.addListener("click", () => selectRoute(index));
+        const marker = new google.maps.Marker({
+          map: preciseMap,
+          position: start,
+          label: String(index + 1).padStart(2, "0"),
+          title: segment.name || `Rota ${index + 1}`,
+        });
+        marker.addListener("click", () => selectRoute(index));
+        preciseMapLines.push(line);
+        preciseMapMarkers.push(marker);
+      });
     }
 
     function deviceStatus(condo) {
@@ -239,8 +378,9 @@
           </div>
         `;
         card.addEventListener("click", () => {
-          selectedCondoId = condo.id;
-          fillForm(condo);
+      selectedCondoId = condo.id;
+      selectedRouteIndex = 0;
+      fillForm(condo);
           renderAllCondos();
         });
         condoList.appendChild(card);
@@ -249,7 +389,7 @@
 
     function renderAdminCondos() {
       const term = adminSearch.value.trim().toLowerCase();
-      const status = statusFilter.value;
+      const status = statusFilter?.value || "Todos";
       const filtered = condominiums.filter((condo) => {
         const text = `${condo.name} ${condo.address} ${condo.city} ${condo.state}`.toLowerCase();
         const deviceFilter = status === "Com dispositivo" ? condo.deviceLinked : status === "Sem dispositivo" ? !condo.deviceLinked : true;
@@ -269,21 +409,21 @@
         const card = document.createElement("article");
         card.className = `admin-condo-card${condo.id === selectedCondoId ? " active" : ""}`;
         card.dataset.status = condo.deviceLinked ? "Com dispositivo" : "Sem dispositivo";
+        const imageMarkup = condo.image ? `<img src="${condo.image}" alt="${condo.name}" />` : "◇";
         card.innerHTML = `
+          <div class="admin-condo-thumb">${imageMarkup}</div>
           <div>
             <strong>${condo.name}</strong>
-            <span>${deviceStatus(condo)}</span>
-            <small>${condo.address || "Endereço não informado"} • ${condo.city || "Cidade"} ${condo.state || ""}</small>
-            <small>${condo.deviceLinked ? "Dispositivo operacional vinculado" : "Vincule um dispositivo para ativar status em tempo real"}</small>
-          </div>
-          <div class="admin-card-actions">
-            <button class="mini-button" type="button">Editar</button>
+            <span>${condo.city || "Cidade"} ${condo.state || ""}</span>
+            <small>${condo.patrolRouteSegments?.length || 0} rotas cadastradas</small>
           </div>
         `;
         card.addEventListener("click", () => {
           selectedCondoId = condo.id;
+          selectedRouteIndex = 0;
           fillForm(condo);
           renderAllCondos();
+          openCondoEditor();
         });
         adminCondoList.appendChild(card);
       });
@@ -296,10 +436,19 @@
       mapGuards.replaceChildren();
       mapCanvas.classList.toggle("empty", !activeCondo());
       const activeRoute = getActiveRoute();
+      const segments = routeEditing ? draftRoute : activeCondo()?.patrolRouteSegments || [];
 
       if (activeRoute.length > 1) {
-        plannedLayer.appendChild(svg("path", { class: "route-shadow", d: pathFrom(activeRoute) }));
-        plannedLayer.appendChild(svg("path", { class: "route-planned", d: pathFrom(activeRoute) }));
+        segments.forEach((segment, index) => {
+          const segmentPoints = projectRoute(routeSegmentsToPoints([segment]));
+          if (segmentPoints.length < 2) return;
+          const d = pathFrom(segmentPoints);
+          const hit = svg("path", { class: "route-click-target", d, "data-route-index": index });
+          const line = svg("path", { class: `route-planned${index === selectedRouteIndex ? " selected" : ""}`, d });
+          hit.addEventListener("click", () => selectRoute(index));
+          plannedLayer.appendChild(hit);
+          plannedLayer.appendChild(line);
+        });
         if (guards.length) {
           completedLayer.appendChild(svg("path", { class: "route-completed", d: partialPath(activeRoute, 0.75 + Math.sin(tick / 5) * 0.02) }));
         }
@@ -319,6 +468,7 @@
         const point = pointAt(activeRoute, moved);
         mapGuards.appendChild(svg("circle", { class: "guard-dot", cx: point.x, cy: point.y, r: 8, fill: guard.color }));
       });
+      renderSelectedRouteDetails();
     }
 
     function getActiveRoute() {
@@ -327,6 +477,38 @@
       if (condo?.patrolRouteGeo?.length) return projectRoute(condo.patrolRouteGeo);
       if (condo?.patrolRoute?.length) return condo.patrolRoute.map(([x, y]) => ({ x, y }));
       return [];
+    }
+
+    function selectRoute(index) {
+      selectedRouteIndex = index;
+      renderMap();
+    }
+
+    function renderSelectedRouteDetails() {
+      const source = routeEditing ? draftRoute : activeCondo()?.patrolRouteSegments || [];
+      const segment = source[selectedRouteIndex] || source[0];
+      if (!segment) {
+        detailRouteNumber.textContent = "--";
+        detailGuardName.textContent = "Nenhum vigilante vinculado";
+        detailGuardStatus.textContent = "Selecione uma rota no mapa";
+        detailRouteName.textContent = "Rota: --";
+        detailRoutePath.textContent = "Nenhum percurso selecionado";
+        detailProgressText.textContent = "0%";
+        detailProgressBar.style.width = "0%";
+        detailNextPoint.textContent = "Nenhum ponto definido";
+        detailEta.textContent = "--:--";
+        return;
+      }
+      const progress = Math.max(0, Math.min(100, Number(segment.progress) || 0));
+      detailRouteNumber.textContent = String(source.indexOf(segment) + 1).padStart(2, "0");
+      detailGuardName.textContent = segment.guardName || "Vigilante não definido";
+      detailGuardStatus.textContent = segment.guardName ? segment.guardStatus || "Vinculado à rota" : "Aguardando cadastro";
+      detailRouteName.textContent = `Rota: ${segment.name || `Rota ${source.indexOf(segment) + 1}`}`;
+      detailRoutePath.textContent = `${segment.startLat}, ${segment.startLng} até ${segment.endLat}, ${segment.endLng}`;
+      detailProgressText.textContent = `${progress}%`;
+      detailProgressBar.style.width = `${progress}%`;
+      detailNextPoint.textContent = segment.name || "Fim da rota";
+      detailEta.textContent = progress ? "Em andamento" : "--:--";
     }
 
     function startRouteEditing() {
@@ -381,6 +563,9 @@
       }
       draftRoute.push({
         name: routePointName.value.trim() || `Rota ${draftRoute.length + 1}`,
+        guardName: routeGuardName.value.trim(),
+        guardStatus: routeGuardName.value.trim() ? "Vinculado à rota" : "Aguardando cadastro",
+        progress: 0,
         startLat,
         startLng,
         endLat,
@@ -388,6 +573,7 @@
       });
       focusGoogleMapOnPoint({ lat: startLat, lng: startLng });
       routePointName.value = "";
+      routeGuardName.value = "";
       routeStartLat.value = "";
       routeStartLng.value = "";
       routeEndLat.value = "";
@@ -411,7 +597,7 @@
         item.className = "route-point-item";
         item.innerHTML = `
           <b>${String(index + 1).padStart(2, "0")}</b>
-          <span>${segment.name || `Rota ${index + 1}`} • ${segment.startLat}, ${segment.startLng} até ${segment.endLat}, ${segment.endLng}</span>
+          <span>${segment.name || `Rota ${index + 1}`} · ${segment.guardName || "Sem vigilante"} · Início ${segment.startLat}, ${segment.startLng} · Fim ${segment.endLat}, ${segment.endLng}</span>
           <button type="button" data-focus-route="${index}" data-route-edge="start" title="Ver início no Google">Início</button>
           <button type="button" data-focus-route="${index}" data-route-edge="end" title="Ver fim no Google">Fim</button>
         `;
@@ -479,56 +665,40 @@
     function updateOverviewCondoMap() {
       const condo = activeCondo();
       if (!condo) {
-        overviewGoogleMapFrame.removeAttribute("src");
         lastOverviewMapSrc = "";
+        mapCanvas.classList.remove("precise");
+        clearPreciseMapOverlays();
         overviewCondoName.textContent = "Nenhum condomínio cadastrado";
-        overviewCondoStatus.textContent = "Sem dispositivo";
-        overviewCondoAddress.textContent = "Cadastre um condomínio para iniciar o monitoramento.";
         return;
       }
-      const zoom = condo.googleMapZoom || "18";
-      const mapType = condo.googleMapType || "k";
-      const lat = normalizeCoordinate(condo.googleAreaLat);
-      const lng = normalizeCoordinate(condo.googleAreaLng);
-      const addressQuery = [condo.address, condo.city, condo.state, "Brasil"].filter(Boolean).join(", ");
-      const encodedAddress = encodeURIComponent(addressQuery || "Brasil");
-      const nextSrc =
-        lat && lng
-          ? `https://www.google.com/maps?ll=${lat},${lng}&t=${mapType}&z=${zoom}&output=embed`
-          : `https://www.google.com/maps?q=${encodedAddress}&t=${mapType}&z=${zoom}&output=embed`;
-      if (overviewGoogleMapFrame.src !== nextSrc && lastOverviewMapSrc !== nextSrc) {
-        overviewGoogleMapFrame.src = nextSrc;
-        lastOverviewMapSrc = nextSrc;
-      }
       overviewCondoName.textContent = condo.name || "Condomínio";
-      overviewCondoStatus.textContent = deviceStatus(condo);
-      overviewCondoAddress.textContent = [condo.address, condo.city, condo.state].filter(Boolean).join(" • ") || "Endereço não informado";
+      renderPreciseOverviewMap(condo);
     }
 
     function renderTable() {
       activeTable.replaceChildren();
       const header = document.createElement("div");
       header.className = "table-row header";
-      header.innerHTML = "<span>Vigilante</span><span>Status</span><span>Percurso Atual</span><span>Último Ponto</span><span>Progresso</span>";
+      header.innerHTML = "<span>Rota</span><span>Vigilante</span><span>Início</span><span>Fim</span><span>Tempo de percurso</span>";
       activeTable.appendChild(header);
 
-      if (!guards.length) {
+      if (!completedRoutes.length) {
         const empty = document.createElement("div");
         empty.className = "table-row empty";
-        empty.innerHTML = "<span>Nenhum vigilante vinculado</span><span>-</span><span>-</span><span>-</span><span>0%</span>";
+        empty.innerHTML = "<span>Nenhuma rota concluída hoje</span><span>-</span><span>-</span><span>-</span><span>-</span>";
         activeTable.appendChild(empty);
         return;
       }
 
-      guards.forEach((guard) => {
+      completedRoutes.forEach((route) => {
         const row = document.createElement("div");
         row.className = "table-row";
         row.innerHTML = `
-          <span><i class="guard-chip" style="background:${guard.color}">${guard.number}</i>${guard.name}</span>
-          <span class="table-status">${guard.status}</span>
-          <span>${guard.path}</span>
-          <span>${guard.lastPoint}</span>
-          <span>${guard.progress}% <b class="mini-progress"><i style="width:${guard.progress}%"></i></b></span>
+          <span>${route.name}</span>
+          <span>${route.guard}</span>
+          <span>${route.startedAt}</span>
+          <span>${route.finishedAt}</span>
+          <span class="table-status">${route.duration}</span>
         `;
         activeTable.appendChild(row);
       });
@@ -609,6 +779,7 @@
       currentImage = "";
       routeEditing = false;
       draftRoute = [];
+      selectedRouteIndex = 0;
       condoImage.value = "";
       googleAreaLat.value = "";
       googleAreaLng.value = "";
@@ -619,6 +790,7 @@
       updateGoogleMap(null);
       deleteCondoButton.disabled = true;
       renderAllCondos();
+      openCondoEditor();
     }
 
     function saveForm(event) {
@@ -655,10 +827,12 @@
       selectedCondoId = payload.id;
       routeEditing = false;
       draftRoute = payload.patrolRouteSegments.map((segment) => ({ ...segment }));
+      selectedRouteIndex = 0;
       saveCondominiums();
       fillForm(payload);
       renderAllCondos();
       updateOverviewCondoMap();
+      closeCondoEditor();
     }
 
     function deleteSelectedCondo() {
@@ -669,6 +843,7 @@
       fillForm(activeCondo());
       renderAllCondos();
       updateOverviewCondoMap();
+      closeCondoEditor();
     }
 
     function renderImagePreview() {
@@ -745,8 +920,6 @@
       document.getElementById("sidebarClock").textContent = time;
       document.getElementById("mapAge").textContent = activeCondo() ? String(10 + (tick % 4)) : "0";
       document.getElementById("finishedRoutesMetric").textContent = "0";
-      document.getElementById("detailProgressText").textContent = "0%";
-      document.getElementById("detailProgressBar").style.width = "0%";
     }
 
     function setView(viewName) {
@@ -755,6 +928,7 @@
       document.querySelectorAll("[data-view-button]").forEach((button) => {
         button.classList.toggle("active", button.dataset.viewButton === viewName);
       });
+      topbar.classList.toggle("hidden", viewName === "condominiums");
       if (viewName === "condominiums") {
         fillForm(activeCondo());
         renderAllCondos();
@@ -777,12 +951,19 @@
     condoForm.addEventListener("submit", saveForm);
     deleteCondoButton.addEventListener("click", deleteSelectedCondo);
     adminSearch.addEventListener("input", renderAdminCondos);
-    statusFilter.addEventListener("change", renderAdminCondos);
+    statusFilter?.addEventListener("change", renderAdminCondos);
     condoImage.addEventListener("change", handleImageUpload);
     removeImageButton.addEventListener("click", () => {
       currentImage = "";
       condoImage.value = "";
       renderImagePreview();
+    });
+    closeEditorButton.addEventListener("click", closeCondoEditor);
+    condoEditorOverlay.addEventListener("click", (event) => {
+      if (event.target === condoEditorOverlay) closeCondoEditor();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && condoEditorOverlay.classList.contains("open")) closeCondoEditor();
     });
     ["condoAddress", "condoCity", "condoState"].forEach((id) => {
       document.getElementById(id).addEventListener("change", () => updateGoogleMap(null));
@@ -792,6 +973,8 @@
     googleAreaLng.addEventListener("change", () => updateGoogleMap(null));
     googleMapType.addEventListener("change", () => updateGoogleMap(null));
     googleMapZoom.addEventListener("change", () => updateGoogleMap(null));
+    googleMapsApiKey.value = localStorage.getItem(googleMapsApiKeyStorageKey) || "";
+    googleMapsApiKey.addEventListener("change", saveGoogleMapsApiKey);
     editRouteButton.addEventListener("click", startRouteEditing);
     saveRouteButton.addEventListener("click", saveRoute);
     clearRouteButton.addEventListener("click", clearRoute);
@@ -808,7 +991,7 @@
         lng: isEnd ? segment.endLng : segment.startLng,
       });
     });
-    [routePointName, routeStartLat, routeStartLng, routeEndLat, routeEndLng].forEach((input) => {
+    [routePointName, routeGuardName, routeStartLat, routeStartLng, routeEndLat, routeEndLng].forEach((input) => {
       input.addEventListener("keydown", (event) => {
         if (event.key === "Enter") addRoutePoint(event);
       });
