@@ -627,15 +627,22 @@
       const centerPixel = mercatorPixel(centerLat, centerLng, zoom);
       const viewWidth = 940;
       const viewHeight = 520;
+      const canvasRect = mapCanvas.getBoundingClientRect();
+      const canvasWidth = canvasRect.width || viewWidth;
+      const canvasHeight = canvasRect.height || viewHeight;
       return routeGeo
         .map((point) => {
           const lat = Number(normalizeCoordinate(point.lat));
           const lng = Number(normalizeCoordinate(point.lng));
           if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
           const pixel = mercatorPixel(lat, lng, zoom);
+          const screenX = canvasWidth / 2 + (pixel.x - centerPixel.x);
+          const screenY = canvasHeight / 2 + (pixel.y - centerPixel.y);
+          const svgX = (screenX / canvasWidth) * viewWidth;
+          const svgY = (screenY / canvasHeight) * viewHeight;
           return {
-            x: Math.max(0, Math.min(viewWidth, viewWidth / 2 + (pixel.x - centerPixel.x))),
-            y: Math.max(0, Math.min(viewHeight, viewHeight / 2 + (pixel.y - centerPixel.y))),
+            x: Math.max(0, Math.min(viewWidth, svgX)),
+            y: Math.max(0, Math.min(viewHeight, svgY)),
             name: point.name || "",
             lat: String(point.lat),
             lng: String(point.lng),
