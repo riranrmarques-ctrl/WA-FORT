@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Safeway Monitoramento</title>
-    <link rel="stylesheet" href="painel.css?v=29" />
+    <link rel="stylesheet" href="painel.css?v=31" />
   </head>
   <body>
     <div class="app-shell">
@@ -32,29 +32,37 @@
       <main class="dashboard">
         <header class="topbar" id="topbar">
           <div>
-            <h1>Supervisão em Tempo Real</h1>
+            <div class="headline-row">
+              <h1>Supervisão em Tempo Real</h1>
+              <span class="live-badge">● AO VIVO</span>
+            </div>
             <p>Acompanhe em tempo real os condomínios e vigilantes ativos.</p>
           </div>
 
           <div class="top-status">
+            <div class="weather-chip">☁ 28°C</div>
             <div>
               <span>Última atualização</span>
               <strong id="sidebarClock">00:00:00</strong>
-              <small><i></i>Atualizando em tempo real</small>
+              <small><i></i>Sistema 100% online</small>
             </div>
           </div>
         </header>
 
         <div class="view active" id="overviewView">
         <section class="summary-grid" aria-label="Resumo operacional">
-          <article class="metric-card">
-            <div class="metric-icon blue">▥</div>
-            <div>
-              <span>Condomínios</span>
-              <strong>0</strong>
-              <small>Todos os condomínios</small>
+          <aside class="condo-panel panel overview-condo-panel">
+            <div class="panel-title">
+              <h2>Condomínios</h2>
             </div>
-          </article>
+            <div class="search-row">
+              <label>
+                <span>⌕</span>
+                <input type="search" placeholder="Buscar condomínio..." />
+              </label>
+            </div>
+            <div class="condo-list" id="condoList"></div>
+          </aside>
           <article class="metric-card">
             <div class="metric-icon green">⬡</div>
             <div>
@@ -63,15 +71,6 @@
               <small>Em atividade agora</small>
             </div>
             <svg class="spark" viewBox="0 0 110 32"><path d="M2 24 L12 20 L20 22 L28 12 L38 18 L48 9 L58 16 L68 8 L78 14 L88 6 L98 18 L108 12" /></svg>
-          </article>
-          <article class="metric-card">
-            <div class="metric-icon amber">⌘</div>
-            <div>
-              <span>Rotas em Andamento</span>
-              <strong id="activeRoutesMetric">0</strong>
-              <small>Percursos ativos</small>
-            </div>
-            <svg class="spark amber-line" viewBox="0 0 110 32"><path d="M2 18 L12 18 L22 15 L32 20 L42 16 L52 18 L62 14 L72 17 L82 11 L92 19 L108 15" /></svg>
           </article>
           <article class="metric-card">
             <div class="metric-icon violet">▣</div>
@@ -94,19 +93,6 @@
         </section>
 
         <section class="operations-grid">
-          <aside class="condo-panel panel">
-            <div class="panel-title">
-              <h2>Condomínios</h2>
-            </div>
-            <div class="search-row">
-              <label>
-                <span>⌕</span>
-                <input type="search" placeholder="Buscar condomínio..." />
-              </label>
-            </div>
-            <div class="condo-list" id="condoList"></div>
-          </aside>
-
           <section class="map-panel panel">
             <div class="map-header">
               <div>
@@ -372,6 +358,6 @@
       </main>
     </div>
 
-    <script src="painel.js?v=29"></script>
+    <script src="painel.js?v=31"></script>
   </body>
 </html>
