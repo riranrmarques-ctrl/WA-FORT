@@ -455,12 +455,25 @@
         }
       }
 
-      activeRoute.forEach((point, index) => {
+      segments.forEach((segment, index) => {
+        const segmentPoints = projectRoute(routeSegmentsToPoints([segment]));
+        if (segmentPoints.length < 2) return;
+        const start = segmentPoints[0];
+        const end = segmentPoints[segmentPoints.length - 1];
+        const markerPoint = {
+          x: start.x + (end.x - start.x) * 0.5,
+          y: start.y + (end.y - start.y) * 0.5,
+        };
         const pointColor = [colors.blue, colors.green, colors.violet, colors.amber][index % 4];
-        mapCheckpoints.appendChild(svg("circle", { class: "checkpoint-ring", cx: point.x, cy: point.y, r: 18, fill: pointColor }));
-        const label = svg("text", { class: "map-label", x: point.x, y: point.y + 1 });
-        label.textContent = point.name ? String(index + 1).padStart(2, "0") : String(index + 1).padStart(2, "0");
-        mapCheckpoints.appendChild(label);
+        const routeMarker = svg("g", { class: "route-map-marker", "data-route-index": index });
+        routeMarker.appendChild(svg("circle", { class: "route-endpoint", cx: start.x, cy: start.y, r: 7 }));
+        routeMarker.appendChild(svg("circle", { class: "route-endpoint", cx: end.x, cy: end.y, r: 7 }));
+        routeMarker.appendChild(svg("circle", { class: "checkpoint-ring", cx: markerPoint.x, cy: markerPoint.y, r: 18, fill: pointColor }));
+        const label = svg("text", { class: "map-label", x: markerPoint.x, y: markerPoint.y + 1 });
+        label.textContent = String(index + 1).padStart(2, "0");
+        routeMarker.appendChild(label);
+        routeMarker.addEventListener("click", () => selectRoute(index));
+        mapCheckpoints.appendChild(routeMarker);
       });
 
       guards.forEach((guard) => {
@@ -888,15 +901,17 @@
       const hasCoordinates = lat && lng;
       if (!hasCoordinates && !addressQuery) {
         googleMapFrame.removeAttribute("src");
-        googleMapLink.href = "https://www.google.com/maps";
+        if (googleMapLink) googleMapLink.href = "https://www.google.com/maps";
         return;
       }
       const query = hasCoordinates ? `${lat},${lng}` : addressQuery;
       const encoded = encodeURIComponent(query);
       googleMapFrame.src = `https://www.google.com/maps?q=${encoded}&t=${mapType}&z=${zoom}&output=embed`;
-      googleMapLink.href = hasCoordinates
-        ? `https://www.google.com/maps/@${lat},${lng},${zoom}z/data=!3m1!1e3`
-        : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+      if (googleMapLink) {
+        googleMapLink.href = hasCoordinates
+          ? `https://www.google.com/maps/@${lat},${lng},${zoom}z/data=!3m1!1e3`
+          : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+      }
     }
 
     function focusGoogleMapOnPoint(point) {
@@ -907,7 +922,7 @@
       const mapType = formValue("googleMapType") || activeCondo()?.googleMapType || "k";
       const encoded = encodeURIComponent(`${lat},${lng}`);
       googleMapFrame.src = `https://www.google.com/maps?q=${encoded}&t=${mapType}&z=${zoom}&output=embed`;
-      googleMapLink.href = `https://www.google.com/maps/@${lat},${lng},${zoom}z/data=!3m1!1e3`;
+      if (googleMapLink) googleMapLink.href = `https://www.google.com/maps/@${lat},${lng},${zoom}z/data=!3m1!1e3`;
     }
 
     function normalizeCoordinate(value) {
