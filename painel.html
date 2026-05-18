@@ -146,7 +146,7 @@
             <div class="guard-profile">
               <div class="profile-number" id="detailRouteNumber">--</div>
               <div>
-                <<strong id="detailGuardName">Nenhum dispositivo vinculado</strong>>
+                <strong id="detailGuardName">Nenhum dispositivo vinculado</strong>
                 <span id="detailGuardStatus">Selecione uma rota no mapa</span>
                 <small id="detailRouteName">Rota: --</small>
               </div>
@@ -298,6 +298,62 @@
                   <iframe id="googleMapFrame" title="Mapa Google do condomínio" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allow="fullscreen" allowfullscreen></iframe>
                 </div>
 
+                <div class="device-setup-block">
+                  <div class="route-setup-heading">
+                    <div>
+                      <h3>Dispositivos do condomínio</h3>
+                      <p>Cadastre os aparelhos que serão rastreados. O código SAFE pertence ao dispositivo, não ao vigilante.</p>
+                    </div>
+                    <button type="button" id="addDeviceButton">Adicionar dispositivo</button>
+                  </div>
+
+                  <div class="device-fields">
+                    <label>
+                      Nome do dispositivo
+                      <input id="deviceName" placeholder="Moto Ronda" />
+                    </label>
+                    <label>
+                      Código do app
+                      <input id="deviceCode" readonly placeholder="SAFE-0000" />
+                    </label>
+                    <label>
+                      Tipo
+                      <select id="deviceType">
+                        <option value="Ronda">Ronda</option>
+                        <option value="Portaria">Portaria</option>
+                        <option value="Reserva">Reserva</option>
+                      </select>
+                    </label>
+                    <label>
+                      Status
+                      <select id="deviceStatus">
+                        <option value="Aguardando sincronização">Aguardando sincronização</option>
+                        <option value="Patrulhando">Patrulhando</option>
+                        <option value="Fora da patrulha">Fora da patrulha</option>
+                        <option value="Desvio de rota">Desvio de rota</option>
+                        <option value="Dispositivo inativo">Dispositivo inativo</option>
+                      </select>
+                    </label>
+                    <label>
+                      Vigilante atual
+                      <select id="deviceGuard"></select>
+                    </label>
+                    <label>
+                      Bateria
+                      <input id="deviceBattery" inputmode="numeric" placeholder="82" />
+                    </label>
+                    <label>
+                      Última sincronização
+                      <input id="deviceLastSync" placeholder="Automático" />
+                    </label>
+                    <label class="checkbox-field">
+                      <input id="deviceActive" type="checkbox" checked />
+                      Ativo
+                    </label>
+                  </div>
+                  <div class="device-list" id="deviceList"></div>
+                </div>
+
                 <div class="route-setup-block">
                   <div class="route-setup-heading">
                     <div>
@@ -316,10 +372,6 @@
                       <label>
                         Nome da rota
                         <input id="routePointName" placeholder="Rota 1, Portaria ao Bloco A..." />
-                      </label>
-                      <label>
-                        Vigilante responsável
-                        <input id="routeGuardName" placeholder="Nome do vigilante" />
                       </label>
                       <label>
                         Latitude inicial
@@ -397,20 +449,12 @@
                       <input id="guardPhone" placeholder="(00) 00000-0000" />
                     </label>
                     <label>
-                      Código do app
-                      <input id="guardAppCode" placeholder="Ex: SAFE-4821" />
-                    </label>
-                    <label>
-                      Nome do dispositivo
-                      <input id="guardDeviceName" placeholder="Ex: Celular Portaria 01" />
-                    </label>
-                    <label>
                       Condomínio
                       <select id="guardCondo"></select>
                     </label>
                     <label>
-                      Rota
-                      <select id="guardRoute"></select>
+                      Dispositivo
+                      <select id="guardDevice"></select>
                     </label>
                     <label>
                       Turno 12x12
@@ -430,12 +474,6 @@
                         <option value="Fora de turno">Fora de turno</option>
                       </select>
                     </label>
-                  </div>
-
-                  <div class="sync-box">
-                    <strong>Código para o app do celular</strong>
-                    <p>Digite este código no app do vigilante para vincular o dispositivo ao cadastro.</p>
-                    <code id="guardCodePreview">SAFE-0000</code>
                   </div>
 
                   <div class="form-actions">
