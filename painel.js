@@ -9,6 +9,7 @@
     };
 
     const storageKey = "safeway.condominiums.v2";
+    const guardsStorageKey = "safeway.guards.v1";
     const googleMapsApiKeyStorageKey = "safeway.googleMapsApiKey.v1";
     const defaultCondos = [];
 
@@ -35,17 +36,19 @@
       [90, 340],
     ];
 
-    const guards = [];
-
     const completedRoutes = [];
 
     const checkpointHistory = [];
 
     let tick = 0;
     let condominiums = loadCondominiums();
+    let guards = loadGuards();
     let selectedCondoId = condominiums[0]?.id || null;
+    let selectedGuardId = guards[0]?.id || null;
 
     const condoList = document.getElementById("condoList");
+    const overviewCondoPanel = document.querySelector(".overview-condo-panel");
+    const condoSelectorToggle = document.getElementById("condoSelectorToggle");
     const plannedLayer = document.getElementById("plannedLayer");
     const completedLayer = document.getElementById("completedLayer");
     const mapCheckpoints = document.getElementById("mapCheckpoints");
@@ -57,6 +60,21 @@
     const overviewCondoName = document.getElementById("overviewCondoName");
     const activeTable = document.getElementById("activeTable");
     const checkpointHistoryEl = document.getElementById("checkpointHistory");
+    const guardList = document.getElementById("guardList");
+    const guardForm = document.getElementById("guardForm");
+    const guardEditorOverlay = document.getElementById("guardEditorOverlay");
+    const closeGuardEditorButton = document.getElementById("closeGuardEditorButton");
+    const guardSearch = document.getElementById("guardSearch");
+    const guardName = document.getElementById("guardName");
+    const guardPhone = document.getElementById("guardPhone");
+    const guardAppCode = document.getElementById("guardAppCode");
+    const guardDeviceName = document.getElementById("guardDeviceName");
+    const guardCondo = document.getElementById("guardCondo");
+    const guardRoute = document.getElementById("guardRoute");
+    const guardShift = document.getElementById("guardShift");
+    const guardStatus = document.getElementById("guardStatus");
+    const guardCodePreview = document.getElementById("guardCodePreview");
+    const deleteGuardButton = document.getElementById("deleteGuardButton");
     const adminCondoList = document.getElementById("adminCondoList");
     const condoForm = document.getElementById("condoForm");
     const condoEditorOverlay = document.getElementById("condoEditorOverlay");
@@ -224,6 +242,48 @@
       localStorage.setItem(storageKey, JSON.stringify(condominiums));
     }
 
+    function generateGuardCode() {
+      return `SAFE-${Math.floor(1000 + Math.random() * 9000)}`;
+    }
+
+    function normalizeGuard(guard = {}, index = 0) {
+      const progress = Number(guard.progress);
+      const routeIndex = Number(guard.routeIndex);
+      return {
+        id: guard.id || `guard-${Date.now()}-${index}`,
+        name: guard.name || "Vigilante sem nome",
+        phone: guard.phone || "",
+        appCode: guard.appCode || generateGuardCode(),
+        deviceName: guard.deviceName || "",
+        condoId: guard.condoId || "",
+        routeIndex: Number.isFinite(routeIndex) ? routeIndex : 0,
+        shift: guard.shift || "06:00 - 18:00",
+        status: guard.status || "Aguardando sincronização",
+        progress: Number.isFinite(progress) ? Math.max(0, Math.min(100, progress)) : 0,
+        color: guard.color || colors.green,
+        routeOffset: Number.isFinite(Number(guard.routeOffset)) ? Number(guard.routeOffset) : 0,
+      };
+    }
+
+    function loadGuards() {
+      try {
+        const stored = localStorage.getItem(guardsStorageKey);
+        if (!stored) return [];
+        const parsed = JSON.parse(stored);
+        return Array.isArray(parsed) ? parsed.map(normalizeGuard) : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveGuards() {
+      localStorage.setItem(guardsStorageKey, JSON.stringify(guards));
+    }
+
+    function activeGuard() {
+      return guards.find((guard) => guard.id === selectedGuardId) || guards[0] || null;
+    }
+
     function openCondoEditor() {
       condoEditorOverlay.classList.add("open");
       condoEditorOverlay.setAttribute("aria-hidden", "false");
@@ -379,9 +439,10 @@
           </div>
         `;
         card.addEventListener("click", () => {
-      selectedCondoId = condo.id;
-      selectedRouteIndex = 0;
-      fillForm(condo);
+          selectedCondoId = condo.id;
+          selectedRouteIndex = 0;
+          fillForm(condo);
+          overviewCondoPanel?.classList.remove("open");
           renderAllCondos();
         });
         condoList.appendChild(card);
@@ -430,6 +491,198 @@
       });
     }
 
+    function populateGuardCondoOptions() {
+      if (!guardCondo) return;
+      guardCondo.replaceChildren();
+      if (!condominiums.length) {
+        guardCondo.appendChild(new Option("Nenhum condomínio cadastrado", ""));
+        return;
+      }
+      condominiums.forEach((condo) => {
+        guardCondo.appendChild(new Option(condo.name, condo.id));
+      });
+    }
+
+    function populateGuardRouteOptions(condoId) {
+      if (!guardRoute) return;
+      guardRoute.replaceChildren();
+      const condo = condominiums.find((item) => item.id === condoId);
+      const routes = condo?.patrolRouteSegments || [];
+      if (!routes.length) {
+        guardRoute.appendChild(new Option("Nenhuma rota cadastrada", ""));
+        guardRoute.disabled = true;
+        return;
+      }
+      guardRoute.disabled = false;
+      routes.forEach((route, index) => {
+        guardRoute.appendChild(new Option(route.name || `Rota ${index + 1}`, String(index)));
+      });
+    }
+
+    function openGuardEditor() {
+      guardEditorOverlay?.classList.add("open");
+      guardEditorOverlay?.setAttribute("aria-hidden", "false");
+    }
+
+    function closeGuardEditor() {
+      guardEditorOverlay?.classList.remove("open");
+      guardEditorOverlay?.setAttribute("aria-hidden", "true");
+    }
+
+    function fillGuardForm(guard) {
+      const selected = arguments.length ? guard : activeGuard();
+      populateGuardCondoOptions();
+      const defaultCondoId = selected?.condoId || condominiums[0]?.id || "";
+      populateGuardRouteOptions(defaultCondoId);
+      document.getElementById("guardFormTitle").textContent = selected ? "Editar Vigilante" : "Novo Vigilante";
+      document.getElementById("guardFormSubtitle").textContent = selected
+        ? `${selected.name} · ${selected.deviceName || "Dispositivo sem nome"}`
+        : "Preencha os dados do vigilante e o código para sincronizar com o app.";
+      guardName.value = selected?.name || "";
+      guardPhone.value = selected?.phone || "";
+      guardAppCode.value = selected?.appCode || generateGuardCode();
+      guardDeviceName.value = selected?.deviceName || "";
+      guardCondo.value = defaultCondoId;
+      populateGuardRouteOptions(defaultCondoId);
+      guardRoute.value = selected?.routeIndex != null ? String(selected.routeIndex) : "0";
+      guardShift.value = selected?.shift || "06:00 - 18:00";
+      guardStatus.value = selected?.status || "Aguardando sincronização";
+      guardCodePreview.textContent = guardAppCode.value || "SAFE-0000";
+      deleteGuardButton.disabled = !selected;
+    }
+
+    function clearGuardForm() {
+      selectedGuardId = null;
+      guardForm.reset();
+      fillGuardForm(null);
+      openGuardEditor();
+    }
+
+    function guardRouteLabel(guard) {
+      const condo = condominiums.find((item) => item.id === guard.condoId);
+      const route = condo?.patrolRouteSegments?.[guard.routeIndex];
+      return route?.name || "Rota não definida";
+    }
+
+    function renderGuards() {
+      if (!guardList) return;
+      const term = (guardSearch?.value || "").trim().toLowerCase();
+      const filtered = guards.filter((guard) => {
+        const condo = condominiums.find((item) => item.id === guard.condoId);
+        const text = `${guard.name} ${guard.phone} ${guard.deviceName} ${guard.appCode} ${condo?.name || ""}`.toLowerCase();
+        return text.includes(term);
+      });
+
+      guardList.replaceChildren();
+      if (!filtered.length) {
+        const empty = document.createElement("div");
+        empty.className = "admin-condo-card guard-admin-card empty";
+        empty.innerHTML = "<div><strong>Nenhum vigilante cadastrado</strong><small>Clique em Novo Vigilante para criar o primeiro.</small></div>";
+        guardList.appendChild(empty);
+        return;
+      }
+
+      filtered.forEach((guard) => {
+        const condo = condominiums.find((item) => item.id === guard.condoId);
+        const initials = guard.name
+          .split(" ")
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part) => part[0])
+          .join("")
+          .toUpperCase();
+        const card = document.createElement("article");
+        card.className = `admin-condo-card guard-admin-card${guard.id === selectedGuardId ? " active" : ""}`;
+        card.innerHTML = `
+          <div class="guard-avatar">${initials || "VG"}</div>
+          <div>
+            <strong>${guard.name}</strong>
+            <span>${guard.status}</span>
+            <small>${guard.deviceName || "Dispositivo sem nome"} · ${guard.appCode}</small>
+            <small>${condo?.name || "Sem condomínio"} · ${guardRouteLabel(guard)}</small>
+            <small>Turno ${guard.shift}</small>
+          </div>
+        `;
+        card.addEventListener("click", () => {
+          selectedGuardId = guard.id;
+          fillGuardForm(guard);
+          renderGuards();
+          openGuardEditor();
+        });
+        guardList.appendChild(card);
+      });
+    }
+
+    function syncGuardAssignments() {
+      condominiums.forEach((condo) => {
+        (condo.patrolRouteSegments || []).forEach((segment) => {
+          segment.guardName = "";
+          segment.guardStatus = "Aguardando cadastro";
+          segment.progress = 0;
+        });
+      });
+
+      guards.forEach((guard) => {
+        const condo = condominiums.find((item) => item.id === guard.condoId);
+        const segment = condo?.patrolRouteSegments?.[guard.routeIndex];
+        if (!segment) return;
+        segment.guardName = guard.name;
+        segment.guardStatus = guard.status;
+        segment.progress = guard.status === "Em patrulha" ? Math.max(guard.progress, 1) : guard.progress;
+      });
+
+      condominiums.forEach((condo) => {
+        condo.patrolRouteSegments = normalizeRouteSegments(condo.patrolRouteSegments, []);
+        condo.patrolRouteGeo = routeSegmentsToPoints(condo.patrolRouteSegments);
+        condo.patrolRoute = projectRoute(condo.patrolRouteGeo).map((point) => [Math.round(point.x), Math.round(point.y)]);
+      });
+      saveCondominiums();
+    }
+
+    function saveGuardForm(event) {
+      event.preventDefault();
+      const routeIndex = Number(guardRoute.value);
+      const existing = guards.find((guard) => guard.id === selectedGuardId);
+      const payload = normalizeGuard({
+        ...(existing || {}),
+        id: existing?.id || `guard-${Date.now()}`,
+        name: guardName.value.trim(),
+        phone: guardPhone.value.trim(),
+        appCode: guardAppCode.value.trim() || generateGuardCode(),
+        deviceName: guardDeviceName.value.trim(),
+        condoId: guardCondo.value,
+        routeIndex: Number.isFinite(routeIndex) ? routeIndex : 0,
+        shift: guardShift.value,
+        status: guardStatus.value,
+      });
+
+      const existingIndex = guards.findIndex((guard) => guard.id === payload.id);
+      if (existingIndex >= 0) {
+        guards[existingIndex] = payload;
+      } else {
+        guards.unshift(payload);
+      }
+      selectedGuardId = payload.id;
+      saveGuards();
+      syncGuardAssignments();
+      renderAllCondos();
+      renderGuards();
+      updateOverviewCondoMap();
+      closeGuardEditor();
+    }
+
+    function deleteSelectedGuard() {
+      if (!selectedGuardId) return;
+      guards = guards.filter((guard) => guard.id !== selectedGuardId);
+      selectedGuardId = guards[0]?.id || null;
+      saveGuards();
+      syncGuardAssignments();
+      renderAllCondos();
+      renderGuards();
+      updateOverviewCondoMap();
+      closeGuardEditor();
+    }
+
     function renderMap() {
       plannedLayer.replaceChildren();
       completedLayer.replaceChildren();
@@ -476,11 +729,14 @@
         mapCheckpoints.appendChild(routeMarker);
       });
 
-      guards.forEach((guard) => {
+      guards
+        .filter((guard) => !guard.condoId || guard.condoId === activeCondo()?.id)
+        .forEach((guard, index) => {
         if (activeRoute.length < 2) return;
-        const moved = guard.routeOffset + Math.sin((tick + Number(guard.number)) / 8) * 0.005;
+        const baseProgress = Number(guard.progress) ? Number(guard.progress) / 100 : 0.12 + index * 0.12;
+        const moved = Math.max(0.02, Math.min(0.98, baseProgress)) + Math.sin((tick + index + 1) / 8) * 0.005;
         const point = pointAt(activeRoute, moved);
-        mapGuards.appendChild(svg("circle", { class: "guard-dot", cx: point.x, cy: point.y, r: 8, fill: guard.color }));
+        mapGuards.appendChild(svg("circle", { class: "guard-dot", cx: point.x, cy: point.y, r: 8, fill: guard.color || colors.green }));
       });
       renderSelectedRouteDetails();
     }
@@ -758,16 +1014,10 @@
     }
 
     function updateMetricsFromCondos() {
-      const condoMetric = document.querySelector(".metric-card strong");
       const activeGuardsMetric = document.getElementById("activeGuardsMetric");
-      const activeRoutesMetric = document.getElementById("activeRoutesMetric");
       const openOccurrencesMetric = document.getElementById("openOccurrencesMetric");
-      if (condoMetric) condoMetric.textContent = String(condominiums.length);
       if (activeGuardsMetric) {
         activeGuardsMetric.textContent = String(guards.length);
-      }
-      if (activeRoutesMetric) {
-        activeRoutesMetric.textContent = String(condominiums.reduce((total, condo) => total + (condo.patrolRouteSegments?.length || 0), 0));
       }
       if (openOccurrencesMetric) openOccurrencesMetric.textContent = "0";
     }
@@ -775,6 +1025,7 @@
     function renderAllCondos() {
       renderCondos();
       renderAdminCondos();
+      renderGuards();
       updateMetricsFromCondos();
     }
 
@@ -966,10 +1217,12 @@
       document.querySelectorAll("[data-view-button]").forEach((button) => {
         button.classList.toggle("active", button.dataset.viewButton === viewName);
       });
-      topbar.classList.toggle("hidden", viewName === "condominiums");
+      topbar.classList.toggle("hidden", viewName === "condominiums" || viewName === "guards");
       if (viewName === "condominiums") {
         fillForm(activeCondo());
         renderAllCondos();
+      } else if (viewName === "guards") {
+        renderGuards();
       } else if (viewName === "overview") {
         updateOverviewCondoMap();
       }
@@ -984,11 +1237,25 @@
     document.querySelectorAll("[data-view-button]").forEach((button) => {
       button.addEventListener("click", () => setView(button.dataset.viewButton));
     });
+    condoSelectorToggle?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      overviewCondoPanel?.classList.toggle("open");
+    });
+    document.addEventListener("click", (event) => {
+      if (!overviewCondoPanel?.contains(event.target)) {
+        overviewCondoPanel?.classList.remove("open");
+      }
+    });
     document.getElementById("newCondoButton").addEventListener("click", clearForm);
     document.getElementById("resetFormButton").addEventListener("click", clearForm);
+    document.getElementById("newGuardButton").addEventListener("click", clearGuardForm);
+    document.getElementById("resetGuardFormButton").addEventListener("click", clearGuardForm);
     condoForm.addEventListener("submit", saveForm);
+    guardForm.addEventListener("submit", saveGuardForm);
     deleteCondoButton.addEventListener("click", deleteSelectedCondo);
+    deleteGuardButton.addEventListener("click", deleteSelectedGuard);
     adminSearch.addEventListener("input", renderAdminCondos);
+    guardSearch.addEventListener("input", renderGuards);
     statusFilter?.addEventListener("change", renderAdminCondos);
     condoImage.addEventListener("change", handleImageUpload);
     removeImageButton.addEventListener("click", () => {
@@ -997,11 +1264,16 @@
       renderImagePreview();
     });
     closeEditorButton.addEventListener("click", closeCondoEditor);
+    closeGuardEditorButton.addEventListener("click", closeGuardEditor);
     condoEditorOverlay.addEventListener("click", (event) => {
       if (event.target === condoEditorOverlay) closeCondoEditor();
     });
+    guardEditorOverlay.addEventListener("click", (event) => {
+      if (event.target === guardEditorOverlay) closeGuardEditor();
+    });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && condoEditorOverlay.classList.contains("open")) closeCondoEditor();
+      if (event.key === "Escape" && guardEditorOverlay.classList.contains("open")) closeGuardEditor();
     });
     ["condoAddress", "condoCity", "condoState"].forEach((id) => {
       document.getElementById(id).addEventListener("change", () => updateGoogleMap(null));
@@ -1013,6 +1285,10 @@
     googleMapZoom.addEventListener("change", () => updateGoogleMap(null));
     googleMapsApiKey.value = localStorage.getItem(googleMapsApiKeyStorageKey) || "";
     googleMapsApiKey.addEventListener("change", saveGoogleMapsApiKey);
+    guardAppCode.addEventListener("input", () => {
+      guardCodePreview.textContent = guardAppCode.value.trim() || "SAFE-0000";
+    });
+    guardCondo.addEventListener("change", () => populateGuardRouteOptions(guardCondo.value));
     editRouteButton.addEventListener("click", startRouteEditing);
     saveRouteButton.addEventListener("click", saveRoute);
     clearRouteButton.addEventListener("click", clearRoute);
