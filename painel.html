@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Safeway Monitoramento</title>
-    <link rel="stylesheet" href="painel.css?v=36" />
+    <link rel="stylesheet" href="painel.css?v=38" />
   </head>
   <body>
     <div class="app-shell">
@@ -20,7 +20,7 @@
         <nav class="nav-list" aria-label="Navegação principal">
           <button class="nav-item active" type="button" data-view-button="overview"><span>⌂</span>Visão Geral</button>
           <button class="nav-item" type="button" data-view-button="condominiums"><span>▥</span>Condomínios</button>
-          <button class="nav-item" type="button"><span>♙</span>Vigilantes</button>
+          <button class="nav-item" type="button" data-view-button="guards"><span>♙</span>Vigilantes</button>
           <button class="nav-item" type="button"><span>△</span>Ocorrências</button>
           <button class="nav-item" type="button"><span>▤</span>Relatórios</button>
           <button class="nav-item" type="button"><span>◌</span>Alertas</button>
@@ -352,9 +352,104 @@
             </div>
           </div>
         </section>
+
+        <section class="view admin-view" id="guardsView" aria-label="Administração de vigilantes">
+          <div class="admin-heading">
+            <div>
+              <h2>Vigilantes</h2>
+              <p>Cadastre vigilantes, vincule o app do celular, defina dispositivo, rota e turno 12x12.</p>
+            </div>
+            <button class="primary-button" type="button" id="newGuardButton">+ Novo Vigilante</button>
+          </div>
+
+          <div class="admin-grid">
+            <section class="panel admin-list-panel">
+              <div class="admin-tools">
+                <label>
+                  <span>⌕</span>
+                  <input id="guardSearch" type="search" placeholder="Buscar vigilante..." />
+                </label>
+              </div>
+              <div class="admin-condo-list guard-card-list" id="guardList"></div>
+            </section>
+
+            <div class="editor-overlay" id="guardEditorOverlay" aria-hidden="true">
+              <section class="panel condo-editor" role="dialog" aria-modal="true" aria-labelledby="guardFormTitle">
+                <form id="guardForm">
+                  <div class="editor-title">
+                    <div>
+                      <h2 id="guardFormTitle">Novo Vigilante</h2>
+                      <p id="guardFormSubtitle">Preencha os dados do vigilante e o código para sincronizar com o app.</p>
+                    </div>
+                    <div class="editor-actions">
+                      <button class="ghost-button" type="button" id="resetGuardFormButton">Limpar</button>
+                      <button class="ghost-button icon-button" type="button" id="closeGuardEditorButton" title="Fechar">×</button>
+                    </div>
+                  </div>
+
+                  <div class="form-grid">
+                    <label>
+                      Nome do vigilante
+                      <input id="guardName" required placeholder="Nome completo" />
+                    </label>
+                    <label>
+                      Telefone
+                      <input id="guardPhone" placeholder="(00) 00000-0000" />
+                    </label>
+                    <label>
+                      Código do app
+                      <input id="guardAppCode" placeholder="Ex: SAFE-4821" />
+                    </label>
+                    <label>
+                      Nome do dispositivo
+                      <input id="guardDeviceName" placeholder="Ex: Celular Portaria 01" />
+                    </label>
+                    <label>
+                      Condomínio
+                      <select id="guardCondo"></select>
+                    </label>
+                    <label>
+                      Rota
+                      <select id="guardRoute"></select>
+                    </label>
+                    <label>
+                      Turno 12x12
+                      <select id="guardShift">
+                        <option value="06:00 - 18:00">06:00 - 18:00</option>
+                        <option value="18:00 - 06:00">18:00 - 06:00</option>
+                        <option value="07:00 - 19:00">07:00 - 19:00</option>
+                        <option value="19:00 - 07:00">19:00 - 07:00</option>
+                      </select>
+                    </label>
+                    <label>
+                      Status
+                      <select id="guardStatus">
+                        <option value="Aguardando sincronização">Aguardando sincronização</option>
+                        <option value="Sincronizado">Sincronizado</option>
+                        <option value="Em patrulha">Em patrulha</option>
+                        <option value="Fora de turno">Fora de turno</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div class="sync-box">
+                    <strong>Código para o app do celular</strong>
+                    <p>Digite este código no app do vigilante para vincular o dispositivo ao cadastro.</p>
+                    <code id="guardCodePreview">SAFE-0000</code>
+                  </div>
+
+                  <div class="form-actions">
+                    <button class="danger-button" type="button" id="deleteGuardButton">Excluir</button>
+                    <button class="primary-button" type="submit">Salvar Vigilante</button>
+                  </div>
+                </form>
+              </section>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
 
-    <script src="painel.js?v=36"></script>
+    <script src="painel.js?v=38"></script>
   </body>
 </html>
