@@ -14,6 +14,7 @@
 
     const storageKey = "safeway.condominiums.v2";
     const guardsStorageKey = "safeway.guards.v1";
+    const devicesStorageKey = "safeway.devices.v1";
     const googleMapsApiKeyStorageKey = "safeway.googleMapsApiKey.v1";
     const defaultCondos = [];
 
@@ -47,6 +48,7 @@
     let tick = 0;
     let condominiums = [];
     let guards = [];
+    let devices = [];
     let liveGuards = {};
     let selectedCondoId = null;
     let selectedGuardId = null;
@@ -72,14 +74,21 @@
     const guardSearch = document.getElementById("guardSearch");
     const guardName = document.getElementById("guardName");
     const guardPhone = document.getElementById("guardPhone");
-    const guardAppCode = document.getElementById("guardAppCode");
-    const guardDeviceName = document.getElementById("guardDeviceName");
     const guardCondo = document.getElementById("guardCondo");
-    const guardRoute = document.getElementById("guardRoute");
+    const guardDevice = document.getElementById("guardDevice");
     const guardShift = document.getElementById("guardShift");
     const guardStatus = document.getElementById("guardStatus");
-    const guardCodePreview = document.getElementById("guardCodePreview");
     const deleteGuardButton = document.getElementById("deleteGuardButton");
+    const deviceList = document.getElementById("deviceList");
+    const deviceName = document.getElementById("deviceName");
+    const deviceCode = document.getElementById("deviceCode");
+    const deviceType = document.getElementById("deviceType");
+    const deviceStatus = document.getElementById("deviceStatus");
+    const deviceGuard = document.getElementById("deviceGuard");
+    const deviceBattery = document.getElementById("deviceBattery");
+    const deviceLastSync = document.getElementById("deviceLastSync");
+    const deviceActive = document.getElementById("deviceActive");
+    const addDeviceButton = document.getElementById("addDeviceButton");
     const adminCondoList = document.getElementById("adminCondoList");
     const condoForm = document.getElementById("condoForm");
     const condoEditorOverlay = document.getElementById("condoEditorOverlay");
@@ -104,7 +113,6 @@
     const clearRouteButton = document.getElementById("clearRouteButton");
     const routeCoordinatePanel = document.getElementById("routeCoordinatePanel");
     const routePointName = document.getElementById("routePointName");
-    const routeGuardName = document.getElementById("routeGuardName");
     const routeStartLat = document.getElementById("routeStartLat");
     const routeStartLng = document.getElementById("routeStartLng");
     const routeEndLat = document.getElementById("routeEndLat");
@@ -116,6 +124,8 @@
     const detailGuardStatus = document.getElementById("detailGuardStatus");
     const detailRouteName = document.getElementById("detailRouteName");
     const detailRoutePath = document.getElementById("detailRoutePath");
+    const detailProgressText = document.getElementById("detailProgressText");
+    const detailProgressBar = document.getElementById("detailProgressBar");
     const detailNextPoint = document.getElementById("detailNextPoint");
     const detailEta = document.getElementById("detailEta");
     let currentImage = "";
@@ -201,8 +211,6 @@
               id: route.id,
               routeId: route.id,
               name: route.nome || `Rota ${index + 1}`,
-              guardName: "",
-              guardStatus: "Aguardando cadastro",
               progress: 0,
               startLat: start.latitude,
               startLng: start.longitude,
@@ -259,8 +267,6 @@
             id: segment.id || segment.routeId || "",
             routeId: segment.routeId || segment.id || "",
             name: segment.name || `Rota ${index + 1}`,
-            guardName: segment.guardName || "",
-            guardStatus: segment.guardStatus || "Aguardando cadastro",
             progress: Number.isFinite(Number(segment.progress)) ? Number(segment.progress) : 0,
             startLat: normalizeCoordinate(segment.startLat),
             startLng: normalizeCoordinate(segment.startLng),
@@ -277,8 +283,6 @@
           id: point.id || "",
           routeId: point.routeId || point.id || "",
           name: `Rota ${index + 1}`,
-          guardName: "",
-          guardStatus: "Aguardando cadastro",
           progress: 0,
           startLat: normalizeCoordinate(point.lat),
           startLng: normalizeCoordinate(point.lng),
@@ -396,6 +400,70 @@
       return `SAFE-${Math.floor(1000 + Math.random() * 9000)}`;
     }
 
+    function normalizeDevice(device = {}, index = 0) {
+      return {
+        id: device.id || `device-${Date.now()}-${index}`,
+        name: device.name || device.nome || "Dispositivo sem nome",
+        code: device.code || device.codigo_app || generateGuardCode(),
+        condoId: device.condoId || device.condominio_id || "",
+        type: device.type || device.tipo || "Ronda",
+        status: device.status || "Aguardando sincronização",
+        currentGuardId: device.currentGuardId || device.vigilante_atual_id || "",
+        battery: Number.isFinite(Number(device.battery ?? device.bateria)) ? Number(device.battery ?? device.bateria) : "",
+        lastSync: device.lastSync || device.ultima_sincronizacao || "",
+        active: typeof device.active === "boolean" ? device.active : device.ativo !== false,
+      };
+    }
+
+    function loadDevices() {
+      try {
+        const stored = localStorage.getItem(devicesStorageKey);
+        if (!stored) return [];
+        const parsed = JSON.parse(stored);
+        return Array.isArray(parsed) ? parsed.map(normalizeDevice) : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveDevices() {
+      localStorage.setItem(devicesStorageKey, JSON.stringify(devices));
+    }
+
+    async function loadSupabaseDevices() {
+      if (!supabaseClient) return null;
+      const { data, error } = await supabaseClient.from("dispositivos").select("*").order("criado_em", { ascending: false });
+      if (error) {
+        console.warn("Dispositivos não carregados do Supabase:", error);
+        return null;
+      }
+      return (data || []).map(normalizeDevice);
+    }
+
+    async function saveDeviceToSupabase(device) {
+      if (!supabaseClient) return true;
+      const row = {
+        nome: device.name,
+        codigo_app: device.code,
+        condominio_id: isUuid(device.condoId) ? device.condoId : null,
+        tipo: device.type,
+        status: device.status,
+        vigilante_atual_id: isUuid(device.currentGuardId) ? device.currentGuardId : null,
+        bateria: device.battery === "" ? null : Number(device.battery),
+        ultima_sincronizacao: device.lastSync || null,
+        ativo: Boolean(device.active),
+      };
+      if (isUuid(device.id)) row.id = device.id;
+      const { data, error } = await supabaseClient.from("dispositivos").upsert(row).select().single();
+      if (error) {
+        console.error("Erro ao salvar dispositivo no Supabase:", error);
+        alert("Não consegui salvar o dispositivo no Supabase. Confira a tabela dispositivos e as policies.");
+        return false;
+      }
+      if (data?.id) device.id = data.id;
+      return true;
+    }
+
     function normalizeGuard(guard = {}, index = 0) {
       const progress = Number(guard.progress);
       const routeIndex = Number(guard.routeIndex);
@@ -403,9 +471,8 @@
         id: guard.id || `guard-${Date.now()}-${index}`,
         name: guard.name || "Vigilante sem nome",
         phone: guard.phone || "",
-        appCode: guard.appCode || generateGuardCode(),
-        deviceName: guard.deviceName || "",
         condoId: guard.condoId || "",
+        deviceId: guard.deviceId || guard.dispositivo_id || "",
         routeId: guard.routeId || "",
         routeIndex: Number.isFinite(routeIndex) ? routeIndex : 0,
         shift: guard.shift || "06:00 - 18:00",
@@ -441,34 +508,25 @@
       return (data || []).map((row, index) => {
         const condoId = row.condominio_id || row.condominio || "";
         const condo = condominiums.find((item) => item.id === condoId);
-        const routeId = row.rota_id || "";
-        const routeIndex = Math.max(0, (condo?.patrolRouteSegments || []).findIndex((segment) => (segment.routeId || segment.id) === routeId));
         return normalizeGuard({
           id: row.id,
           name: row.nome,
           phone: row.telefone,
-          appCode: row.codigo_app || row.codigo_dispositivo,
-          deviceName: row.nome_dispositivo || row.dispositivo_nome,
           condoId,
-          routeId,
-          routeIndex,
+          deviceId: row.dispositivo_id || "",
           shift: row.turno || "06:00 - 18:00",
           status: row.status || "Aguardando sincronização",
-          progress: row.progresso || 0,
         }, index);
       });
     }
 
     async function saveGuardToSupabase(guard) {
       if (!supabaseClient) return true;
-      const routeId = guard.routeId || condominiums.find((condo) => condo.id === guard.condoId)?.patrolRouteSegments?.[guard.routeIndex]?.routeId || null;
       const row = {
         nome: guard.name,
         telefone: guard.phone || null,
-        codigo_app: guard.appCode,
-        nome_dispositivo: guard.deviceName || null,
         condominio_id: isUuid(guard.condoId) ? guard.condoId : null,
-        rota_id: isUuid(routeId) ? routeId : null,
+        dispositivo_id: isUuid(guard.deviceId) ? guard.deviceId : null,
         turno: guard.shift,
         status: guard.status,
         ativo: true,
@@ -498,7 +556,7 @@
 
       window.firebaseOnValue(guardsRef, (snapshot) => {
         liveGuards = snapshot.val() || {};
-        console.log("Vigilantes ao vivo:", liveGuards);
+        console.log("Dispositivos ao vivo:", liveGuards);
         updateMetricsFromCondos();
         renderMap();
       });
@@ -622,15 +680,6 @@
       });
     }
 
-    function deviceStatus(condo) {
-      return condo.deviceLinked ? "Com dispositivo" : "Aguardando dispositivo";
-    }
-
-    function statusClass(condo) {
-      if (!condo.deviceLinked) return " attention";
-      return "";
-    }
-
     function renderCondos() {
       condoList.replaceChildren();
       if (!condominiums.length) {
@@ -733,19 +782,18 @@
       });
     }
 
-    function populateGuardRouteOptions(condoId) {
-      if (!guardRoute) return;
-      guardRoute.replaceChildren();
-      const condo = condominiums.find((item) => item.id === condoId);
-      const routes = condo?.patrolRouteSegments || [];
-      if (!routes.length) {
-        guardRoute.appendChild(new Option("Nenhuma rota cadastrada", ""));
-        guardRoute.disabled = true;
+    function populateGuardDeviceOptions(condoId) {
+      if (!guardDevice) return;
+      guardDevice.replaceChildren();
+      const condoDevices = devices.filter((device) => String(device.condoId) === String(condoId) && device.active);
+      if (!condoDevices.length) {
+        guardDevice.appendChild(new Option("Nenhum dispositivo cadastrado", ""));
+        guardDevice.disabled = true;
         return;
       }
-      guardRoute.disabled = false;
-      routes.forEach((route, index) => {
-        guardRoute.appendChild(new Option(route.name || `Rota ${index + 1}`, String(index)));
+      guardDevice.disabled = false;
+      condoDevices.forEach((device) => {
+        guardDevice.appendChild(new Option(`${device.name} · ${device.code}`, device.id));
       });
     }
 
@@ -763,21 +811,18 @@
       const selected = arguments.length ? guard : activeGuard();
       populateGuardCondoOptions();
       const defaultCondoId = selected?.condoId || condominiums[0]?.id || "";
-      populateGuardRouteOptions(defaultCondoId);
+      populateGuardDeviceOptions(defaultCondoId);
       document.getElementById("guardFormTitle").textContent = selected ? "Editar Vigilante" : "Novo Vigilante";
       document.getElementById("guardFormSubtitle").textContent = selected
-        ? `${selected.name} · ${selected.deviceName || "Dispositivo sem nome"}`
-        : "Preencha os dados do vigilante e o código para sincronizar com o app.";
+        ? `${selected.name} · ${deviceLabel(selected.deviceId)}`
+        : "Preencha os dados do vigilante e selecione o dispositivo assumido no turno.";
       guardName.value = selected?.name || "";
       guardPhone.value = selected?.phone || "";
-      guardAppCode.value = selected?.appCode || generateGuardCode();
-      guardDeviceName.value = selected?.deviceName || "";
       guardCondo.value = defaultCondoId;
-      populateGuardRouteOptions(defaultCondoId);
-      guardRoute.value = selected?.routeIndex != null ? String(selected.routeIndex) : "0";
+      populateGuardDeviceOptions(defaultCondoId);
+      guardDevice.value = selected?.deviceId || "";
       guardShift.value = selected?.shift || "06:00 - 18:00";
       guardStatus.value = selected?.status || "Aguardando sincronização";
-      guardCodePreview.textContent = guardAppCode.value || "SAFE-0000";
       deleteGuardButton.disabled = !selected;
     }
 
@@ -788,10 +833,9 @@
       openGuardEditor();
     }
 
-    function guardRouteLabel(guard) {
-      const condo = condominiums.find((item) => item.id === guard.condoId);
-      const route = condo?.patrolRouteSegments?.[guard.routeIndex];
-      return route?.name || "Rota não definida";
+    function deviceLabel(deviceId) {
+      const device = devices.find((item) => item.id === deviceId);
+      return device ? `${device.name} · ${device.code}` : "Sem dispositivo";
     }
 
     function renderGuards() {
@@ -799,7 +843,7 @@
       const term = (guardSearch?.value || "").trim().toLowerCase();
       const filtered = guards.filter((guard) => {
         const condo = condominiums.find((item) => item.id === guard.condoId);
-        const text = `${guard.name} ${guard.phone} ${guard.deviceName} ${guard.appCode} ${condo?.name || ""}`.toLowerCase();
+        const text = `${guard.name} ${guard.phone} ${deviceLabel(guard.deviceId)} ${condo?.name || ""}`.toLowerCase();
         return text.includes(term);
       });
 
@@ -828,8 +872,8 @@
           <div>
             <strong>${guard.name}</strong>
             <span>${guard.status}</span>
-            <small>${guard.deviceName || "Dispositivo sem nome"} · ${guard.appCode}</small>
-            <small>${condo?.name || "Sem condomínio"} · ${guardRouteLabel(guard)}</small>
+            <small>${deviceLabel(guard.deviceId)}</small>
+            <small>${condo?.name || "Sem condomínio"}</small>
             <small>Turno ${guard.shift}</small>
           </div>
         `;
@@ -843,22 +887,80 @@
       });
     }
 
-    function syncGuardAssignments() {
-      condominiums.forEach((condo) => {
-        (condo.patrolRouteSegments || []).forEach((segment) => {
-          segment.guardName = "";
-          segment.guardStatus = "Aguardando cadastro";
-          segment.progress = 0;
-        });
-      });
-
+    function populateDeviceGuardOptions() {
+      if (!deviceGuard) return;
+      deviceGuard.replaceChildren();
+      deviceGuard.appendChild(new Option("Nenhum vigilante assumiu", ""));
       guards.forEach((guard) => {
-        const condo = condominiums.find((item) => item.id === guard.condoId);
-        const segment = condo?.patrolRouteSegments?.[guard.routeIndex];
-        if (!segment) return;
-        segment.guardName = guard.name;
-        segment.guardStatus = guard.status;
-        segment.progress = guard.status === "Em patrulha" ? Math.max(guard.progress, 1) : guard.progress;
+        deviceGuard.appendChild(new Option(guard.name, guard.id));
+      });
+    }
+
+    function renderDevices() {
+      if (!deviceList) return;
+      const condo = activeCondo();
+      const condoDevices = devices.filter((device) => String(device.condoId) === String(condo?.id));
+      deviceList.replaceChildren();
+      if (!condoDevices.length) {
+        const empty = document.createElement("div");
+        empty.className = "device-item empty";
+        empty.textContent = "Nenhum dispositivo cadastrado neste condomínio.";
+        deviceList.appendChild(empty);
+        return;
+      }
+      condoDevices.forEach((device) => {
+        const guard = guards.find((item) => item.id === device.currentGuardId);
+        const item = document.createElement("div");
+        item.className = `device-item${device.active ? "" : " inactive"}`;
+        item.innerHTML = `
+          <strong>${device.name}</strong>
+          <span>${device.code}</span>
+          <small>${device.type} · ${device.status}</small>
+          <small>${guard?.name || "Sem vigilante"} · Bateria ${device.battery === "" ? "--" : `${device.battery}%`}</small>
+        `;
+        deviceList.appendChild(item);
+      });
+    }
+
+    async function addDeviceToCurrentCondo() {
+      const condo = activeCondo();
+      if (!condo) return;
+      const device = normalizeDevice({
+        name: deviceName.value.trim() || "Dispositivo sem nome",
+        code: deviceCode.value.trim() || generateGuardCode(),
+        condoId: condo.id,
+        type: deviceType.value || "Ronda",
+        status: deviceStatus.value || "Aguardando sincronização",
+        currentGuardId: deviceGuard.value || "",
+        battery: deviceBattery.value.trim(),
+        lastSync: deviceLastSync.value.trim(),
+        active: deviceActive.checked,
+      });
+      const saved = await saveDeviceToSupabase(device);
+      if (!saved) return;
+      devices.unshift(device);
+      saveDevices();
+      clearDeviceFields();
+      renderDevices();
+      renderGuards();
+      populateGuardDeviceOptions(guardCondo.value);
+    }
+
+    function clearDeviceFields() {
+      deviceName.value = "";
+      deviceCode.value = generateGuardCode();
+      deviceType.value = "Ronda";
+      deviceStatus.value = "Aguardando sincronização";
+      deviceGuard.value = "";
+      deviceBattery.value = "";
+      deviceLastSync.value = "";
+      deviceActive.checked = true;
+    }
+
+    function syncGuardAssignments() {
+      devices = devices.map((device) => {
+        const guard = guards.find((item) => item.deviceId === device.id);
+        return { ...device, currentGuardId: guard?.id || device.currentGuardId || "" };
       });
 
       condominiums.forEach((condo) => {
@@ -866,24 +968,20 @@
         condo.patrolRouteGeo = routeSegmentsToPoints(condo.patrolRouteSegments);
         condo.patrolRoute = projectRoute(condo.patrolRouteGeo).map((point) => [Math.round(point.x), Math.round(point.y)]);
       });
+      saveDevices();
       saveCondominiums();
     }
 
     async function saveGuardForm(event) {
       event.preventDefault();
-      const routeIndex = Number(guardRoute.value);
       const existing = guards.find((guard) => guard.id === selectedGuardId);
-      const routeId = condominiums.find((condo) => condo.id === guardCondo.value)?.patrolRouteSegments?.[routeIndex]?.routeId || "";
       const payload = normalizeGuard({
         ...(existing || {}),
         id: existing?.id || `guard-${Date.now()}`,
         name: guardName.value.trim(),
         phone: guardPhone.value.trim(),
-        appCode: guardAppCode.value.trim() || generateGuardCode(),
-        deviceName: guardDeviceName.value.trim(),
         condoId: guardCondo.value,
-        routeId,
-        routeIndex: Number.isFinite(routeIndex) ? routeIndex : 0,
+        deviceId: guardDevice.value,
         shift: guardShift.value,
         status: guardStatus.value,
       });
@@ -899,6 +997,18 @@
       }
       selectedGuardId = payload.id;
       saveGuards();
+      devices = devices.map((device) => {
+        if (device.id === payload.deviceId) {
+          return { ...device, currentGuardId: payload.id, status: payload.status };
+        }
+        if (device.currentGuardId === payload.id) {
+          return { ...device, currentGuardId: "" };
+        }
+        return device;
+      });
+      const assignedDevice = devices.find((device) => device.id === payload.deviceId);
+      if (assignedDevice) await saveDeviceToSupabase(assignedDevice);
+      saveDevices();
       syncGuardAssignments();
       renderAllCondos();
       renderGuards();
@@ -945,8 +1055,15 @@
           hit.addEventListener("click", () => selectRoute(index));
           plannedLayer.appendChild(hit);
           plannedLayer.appendChild(line);
+          const mid = {
+            x: segmentPoints[0].x + (segmentPoints[segmentPoints.length - 1].x - segmentPoints[0].x) * 0.5 + 16,
+            y: segmentPoints[0].y + (segmentPoints[segmentPoints.length - 1].y - segmentPoints[0].y) * 0.5,
+          };
+          const label = svg("text", { class: "route-name-label", x: mid.x, y: mid.y, transform: `rotate(-90 ${mid.x} ${mid.y})` });
+          label.textContent = `${segment.name || `Rota ${index + 1}`} ${String(index + 1).padStart(2, "0")}`;
+          plannedLayer.appendChild(label);
         });
-        if (guards.length) {
+        if (Object.keys(liveGuards || {}).length || devices.length) {
           completedLayer.appendChild(svg("path", { class: "route-completed", d: partialPath(activeRoute, 0.75 + Math.sin(tick / 5) * 0.02) }));
         }
       }
@@ -956,18 +1073,9 @@
         if (segmentPoints.length < 2) return;
         const start = segmentPoints[0];
         const end = segmentPoints[segmentPoints.length - 1];
-        const markerPoint = {
-          x: start.x + (end.x - start.x) * 0.5,
-          y: start.y + (end.y - start.y) * 0.5,
-        };
-        const pointColor = [colors.blue, colors.green, colors.violet, colors.amber][index % 4];
         const routeMarker = svg("g", { class: "route-map-marker", "data-route-index": index });
         routeMarker.appendChild(svg("circle", { class: "route-endpoint", cx: start.x, cy: start.y, r: 7 }));
         routeMarker.appendChild(svg("circle", { class: "route-endpoint", cx: end.x, cy: end.y, r: 7 }));
-        routeMarker.appendChild(svg("circle", { class: "checkpoint-ring", cx: markerPoint.x, cy: markerPoint.y, r: 18, fill: pointColor }));
-        const label = svg("text", { class: "map-label", x: markerPoint.x, y: markerPoint.y + 1 });
-        label.textContent = String(index + 1).padStart(2, "0");
-        routeMarker.appendChild(label);
         routeMarker.addEventListener("click", () => selectRoute(index));
         mapCheckpoints.appendChild(routeMarker);
       });
@@ -1003,10 +1111,10 @@
 
       if (!filtered.length) return false;
 
-      filtered.forEach((guard) => {
+      filtered.forEach((device) => {
         const projected = projectGeoPoint({
-          lat: guard.latitude,
-          lng: guard.longitude,
+          lat: device.latitude,
+          lng: device.longitude,
         });
 
         if (!projected) return;
@@ -1027,7 +1135,7 @@
           y: projected.y + 4,
         });
 
-        label.textContent = guard.nome || guard.name || "Vigilante";
+        label.textContent = device.nome_dispositivo || device.dispositivo_id || device.codigo_app || "Dispositivo";
         mapGuards.appendChild(label);
       });
 
@@ -1052,7 +1160,7 @@
       const segment = source[selectedRouteIndex] || source[0];
       if (!segment) {
         detailRouteNumber.textContent = "--";
-        detailGuardName.textContent = "Nenhum vigilante vinculado";
+        detailGuardName.textContent = "Nenhum dispositivo selecionado";
         detailGuardStatus.textContent = "Selecione uma rota no mapa";
         detailRouteName.textContent = "Rota: --";
         detailRoutePath.textContent = "Nenhum percurso selecionado";
@@ -1063,15 +1171,45 @@
         return;
       }
       const progress = Math.max(0, Math.min(100, Number(segment.progress) || 0));
+      const liveDevice = Object.values(liveGuards || {}).find((item) => item?.rota_id && String(item.rota_id) === String(segment.routeId || segment.id));
+      const statusInfo = liveDevice ? getDeviceStatus(liveDevice, segment) : null;
       detailRouteNumber.textContent = String(source.indexOf(segment) + 1).padStart(2, "0");
-      detailGuardName.textContent = segment.guardName || "Vigilante não definido";
-      detailGuardStatus.textContent = segment.guardName ? segment.guardStatus || "Vinculado à rota" : "Aguardando cadastro";
+      detailGuardName.textContent = liveDevice?.nome_dispositivo || liveDevice?.dispositivo_id || "Dispositivo não definido";
+      detailGuardStatus.textContent = statusInfo ? `${statusInfo.status} — ${statusInfo.label}` : "Aguardando dispositivo";
       detailRouteName.textContent = `Rota: ${segment.name || `Rota ${source.indexOf(segment) + 1}`}`;
       detailRoutePath.textContent = `${segment.startLat}, ${segment.startLng} até ${segment.endLat}, ${segment.endLng}`;
       detailProgressText.textContent = `${progress}%`;
       detailProgressBar.style.width = `${progress}%`;
-      detailNextPoint.textContent = segment.name || "Fim da rota";
-      detailEta.textContent = progress ? "Em andamento" : "--:--";
+      detailNextPoint.textContent = liveDevice?.etapa ? `${segment.name || "Rota"} · ${liveDevice.etapa}` : segment.name || "Fim da rota";
+      detailEta.textContent = formatDuration(Number(liveDevice?.tempo_rota_segundos) || 0) || "--:--";
+    }
+
+    function formatClock(value) {
+      const date = value ? new Date(value) : new Date();
+      if (Number.isNaN(date.getTime())) return "--:--:--";
+      return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
+    function formatDuration(seconds) {
+      if (!seconds) return "";
+      const total = Math.max(0, Math.floor(seconds));
+      const minutes = Math.floor(total / 60);
+      const rest = total % 60;
+      return `${String(minutes).padStart(2, "0")}min ${String(rest).padStart(2, "0")}s`;
+    }
+
+    function getDeviceStatus(device, route) {
+      const updatedAt = new Date(device.ultima_atualizacao || device.status_horario || Date.now());
+      const movedAt = new Date(device.ultima_movimentacao || device.ultima_atualizacao || Date.now());
+      const now = Date.now();
+      const inactive = Number.isNaN(updatedAt.getTime()) || now - updatedAt.getTime() > 120000;
+      if (inactive) return { status: "Dispositivo inativo", label: `Último sinal às ${formatClock(updatedAt)}` };
+      const speed = Number(device.velocidade || 0);
+      const position = { lat: device.latitude, lng: device.longitude };
+      const distance = route ? nearestRouteDistanceMeters(position, routeSegmentsToPoints([route])) : 0;
+      if (speed > 0.5 && distance > 35) return { status: "Desvio de rota", label: `Detectado às ${formatClock(device.status_horario || Date.now())}` };
+      if (now - movedAt.getTime() > 300000) return { status: "Fora da patrulha", label: `Sem movimento desde ${formatClock(movedAt)}` };
+      return { status: "Patrulhando", label: `Atualizado às ${formatClock(updatedAt)}` };
     }
 
     function startRouteEditing() {
@@ -1131,8 +1269,6 @@
       }
       draftRoute.push({
         name: routePointName.value.trim() || `Rota ${draftRoute.length + 1}`,
-        guardName: routeGuardName.value.trim(),
-        guardStatus: routeGuardName.value.trim() ? "Vinculado à rota" : "Aguardando cadastro",
         progress: 0,
         startLat,
         startLng,
@@ -1141,7 +1277,6 @@
       });
       focusGoogleMapOnPoint({ lat: startLat, lng: startLng });
       routePointName.value = "";
-      routeGuardName.value = "";
       routeStartLat.value = "";
       routeStartLng.value = "";
       routeEndLat.value = "";
@@ -1165,7 +1300,7 @@
         item.className = "route-point-item";
         item.innerHTML = `
           <b>${String(index + 1).padStart(2, "0")}</b>
-          <span>${segment.name || `Rota ${index + 1}`} · ${segment.guardName || "Sem vigilante"} · Início ${segment.startLat}, ${segment.startLng} · Fim ${segment.endLat}, ${segment.endLng}</span>
+          <span>${segment.name || `Rota ${index + 1}`} · Início ${segment.startLat}, ${segment.startLng} · Fim ${segment.endLat}, ${segment.endLng}</span>
           <button type="button" data-focus-route="${index}" data-route-edge="start" title="Ver início no Google">Início</button>
           <button type="button" data-focus-route="${index}" data-route-edge="end" title="Ver fim no Google">Fim</button>
         `;
@@ -1301,13 +1436,13 @@
       activeTable.replaceChildren();
       const header = document.createElement("div");
       header.className = "table-row header";
-      header.innerHTML = "<span>Rota</span><span>Vigilante</span><span>Início</span><span>Fim</span><span>Tempo de percurso</span>";
+      header.innerHTML = "<span>Hora início</span><span>Rota</span><span>Dispositivo</span><span>Vigilante</span><span>Ida</span><span>Volta</span><span>Total</span><span>Status</span>";
       activeTable.appendChild(header);
 
       if (!completedRoutes.length) {
         const empty = document.createElement("div");
         empty.className = "table-row empty";
-        empty.innerHTML = "<span>Nenhuma rota concluída hoje</span><span>-</span><span>-</span><span>-</span><span>-</span>";
+        empty.innerHTML = "<span>Nenhuma rota concluída hoje</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span>";
         activeTable.appendChild(empty);
         return;
       }
@@ -1316,11 +1451,14 @@
         const row = document.createElement("div");
         row.className = "table-row";
         row.innerHTML = `
-          <span>${route.name}</span>
-          <span>${route.guard}</span>
           <span>${route.startedAt}</span>
-          <span>${route.finishedAt}</span>
-          <span class="table-status">${route.duration}</span>
+          <span>${route.name}</span>
+          <span>${route.device || "-"}</span>
+          <span>${route.guard || "-"}</span>
+          <span>${route.outbound || "-"}</span>
+          <span>${route.returned || "-"}</span>
+          <span>${route.duration || "-"}</span>
+          <span class="table-status">${route.status || "Concluída"}</span>
         `;
         activeTable.appendChild(row);
       });
@@ -1357,6 +1495,8 @@
       renderCondos();
       renderAdminCondos();
       renderGuards();
+      populateDeviceGuardOptions();
+      renderDevices();
       updateMetricsFromCondos();
     }
 
@@ -1385,6 +1525,9 @@
       editRouteButton.textContent = "Editar rota";
       renderImagePreview();
       renderRoutePointList();
+      populateDeviceGuardOptions();
+      clearDeviceFields();
+      renderDevices();
       updateGoogleMap(selected);
       deleteCondoButton.disabled = condominiums.length <= 1;
     }
@@ -1405,6 +1548,8 @@
       googleMapZoom.value = "18";
       renderImagePreview();
       renderRoutePointList();
+      populateDeviceGuardOptions();
+      renderDevices();
       updateGoogleMap(null);
       deleteCondoButton.disabled = true;
       renderAllCondos();
@@ -1631,10 +1776,8 @@
     googleMapZoom.addEventListener("change", () => updateGoogleMap(null));
     googleMapsApiKey.value = localStorage.getItem(googleMapsApiKeyStorageKey) || "";
     googleMapsApiKey.addEventListener("change", saveGoogleMapsApiKey);
-    guardAppCode.addEventListener("input", () => {
-      guardCodePreview.textContent = guardAppCode.value.trim() || "SAFE-0000";
-    });
-    guardCondo.addEventListener("change", () => populateGuardRouteOptions(guardCondo.value));
+    guardCondo.addEventListener("change", () => populateGuardDeviceOptions(guardCondo.value));
+    addDeviceButton.addEventListener("click", addDeviceToCurrentCondo);
     editRouteButton.addEventListener("click", startRouteEditing);
     saveRouteButton.addEventListener("click", saveRoute);
     clearRouteButton.addEventListener("click", clearRoute);
@@ -1651,7 +1794,7 @@
         lng: isEnd ? segment.endLng : segment.startLng,
       });
     });
-    [routePointName, routeGuardName, routeStartLat, routeStartLng, routeEndLat, routeEndLng].forEach((input) => {
+    [routePointName, routeStartLat, routeStartLng, routeEndLat, routeEndLng].forEach((input) => {
       input.addEventListener("keydown", (event) => {
         if (event.key === "Enter") addRoutePoint(event);
       });
@@ -1662,6 +1805,9 @@
       condominiums = remoteCondos || loadCondominiums();
       selectedCondoId = condominiums[0]?.id || null;
       listenFirebaseLiveGuards();
+
+      const remoteDevices = await loadSupabaseDevices();
+      devices = remoteDevices || loadDevices();
 
       const remoteGuards = await loadSupabaseGuards();
       guards = remoteGuards || loadGuards();
