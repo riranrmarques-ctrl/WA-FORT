@@ -2,147 +2,525 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cadastro de Vigilantes</title>
 
-  <title>WA Fort | Vigilantes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="vigilantes.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="vigilantes.js" defer></script>
+  <style>
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+      font-family:'Inter',sans-serif;
+    }
+
+    body{
+      background:#020817;
+      color:#fff;
+      display:flex;
+      min-height:100vh;
+      overflow:hidden;
+    }
+
+    /* SIDEBAR */
+
+    .sidebar{
+      width:240px;
+      background:#071120;
+      border-right:1px solid rgba(255,255,255,.05);
+      padding:30px 20px;
+    }
+
+    .logo{
+      font-size:28px;
+      font-weight:700;
+      margin-bottom:40px;
+      color:#fff;
+    }
+
+    .logo span{
+      color:#3b82f6;
+    }
+
+    .menu{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    .menu button{
+      background:transparent;
+      border:none;
+      color:#cbd5e1;
+      text-align:left;
+      padding:16px;
+      border-radius:14px;
+      cursor:pointer;
+      font-size:15px;
+      transition:.2s;
+    }
+
+    .menu button.active,
+    .menu button:hover{
+      background:#2563eb;
+      color:white;
+    }
+
+    /* MAIN */
+
+    .main{
+      flex:1;
+      padding:28px;
+      overflow:auto;
+    }
+
+    .top{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:30px;
+    }
+
+    .title h1{
+      font-size:40px;
+      margin-bottom:6px;
+    }
+
+    .title p{
+      color:#94a3b8;
+    }
+
+    .novo-btn{
+      background:#2563eb;
+      color:#fff;
+      border:none;
+      padding:16px 24px;
+      border-radius:14px;
+      cursor:pointer;
+      font-weight:600;
+      font-size:15px;
+    }
+
+    /* SEARCH */
+
+    .search{
+      margin-bottom:28px;
+    }
+
+    .search input{
+      width:100%;
+      background:#081425;
+      border:1px solid rgba(255,255,255,.06);
+      height:58px;
+      border-radius:16px;
+      padding:0 20px;
+      color:white;
+      font-size:15px;
+      outline:none;
+    }
+
+    /* GRID */
+
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+      gap:22px;
+    }
+
+    .card{
+      background:linear-gradient(180deg,#091423,#08111d);
+      border:1px solid rgba(255,255,255,.05);
+      border-radius:24px;
+      padding:22px;
+      cursor:pointer;
+      transition:.2s;
+    }
+
+    .card:hover{
+      transform:translateY(-4px);
+      border-color:#2563eb;
+    }
+
+    .avatar{
+      width:70px;
+      height:70px;
+      border-radius:50%;
+      background:#2563eb;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:26px;
+      font-weight:700;
+      margin-bottom:20px;
+    }
+
+    .card h3{
+      font-size:25px;
+      margin-bottom:10px;
+    }
+
+    .phone{
+      color:#94a3b8;
+      margin-bottom:18px;
+      font-size:15px;
+    }
+
+    .status{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      background:rgba(16,185,129,.1);
+      color:#22c55e;
+      padding:8px 14px;
+      border-radius:999px;
+      font-size:14px;
+    }
+
+    .status::before{
+      content:'';
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      background:#22c55e;
+    }
+
+    /* DRAWER */
+
+    .drawer{
+      width:420px;
+      background:#071120;
+      border-left:1px solid rgba(255,255,255,.05);
+      padding:28px;
+      overflow:auto;
+    }
+
+    .drawer h2{
+      margin-bottom:28px;
+      font-size:28px;
+    }
+
+    .profile{
+      display:flex;
+      align-items:center;
+      gap:20px;
+      margin-bottom:30px;
+    }
+
+    .profile .avatar{
+      width:90px;
+      height:90px;
+      margin:0;
+      font-size:34px;
+    }
+
+    .profile h3{
+      font-size:30px;
+      margin-bottom:10px;
+    }
+
+    .field{
+      margin-bottom:22px;
+    }
+
+    .field label{
+      display:block;
+      margin-bottom:10px;
+      color:#cbd5e1;
+      font-size:14px;
+    }
+
+    .field input,
+    .field select{
+      width:100%;
+      height:58px;
+      border-radius:14px;
+      background:#081425;
+      border:1px solid rgba(255,255,255,.06);
+      color:white;
+      padding:0 16px;
+      outline:none;
+      font-size:15px;
+    }
+
+    .sync{
+      margin-top:30px;
+      background:#081425;
+      border:1px solid rgba(255,255,255,.05);
+      padding:20px;
+      border-radius:20px;
+    }
+
+    .sync-title{
+      font-size:18px;
+      margin-bottom:18px;
+      font-weight:600;
+    }
+
+    .sync-box{
+      background:#0b1830;
+      border:1px solid #2563eb;
+      border-radius:16px;
+      padding:18px;
+      text-align:center;
+      color:#60a5fa;
+      margin-bottom:18px;
+    }
+
+    .actions{
+      display:flex;
+      gap:12px;
+      margin-top:35px;
+    }
+
+    .btn{
+      flex:1;
+      height:56px;
+      border:none;
+      border-radius:14px;
+      cursor:pointer;
+      font-size:15px;
+      font-weight:600;
+    }
+
+    .btn.cancel{
+      background:#111827;
+      color:#fff;
+    }
+
+    .btn.save{
+      background:#2563eb;
+      color:#fff;
+    }
+
+    @media(max-width:1200px){
+      .drawer{
+        display:none;
+      }
+    }
+  </style>
 </head>
 
 <body>
+
+  <!-- SIDEBAR -->
+
   <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-icon">WA</div>
-      <div>
-        <strong>WA FORT</strong>
-        <span>MONITORAMENTO</span>
-      </div>
+
+    <div class="logo">
+      SAFE<span>WAY</span>
     </div>
 
-    <nav class="menu">
-      <a href="supervisao.html">⌂ Visão Geral</a>
-      <a href="condominios.html">▦ Condomínios</a>
-      <a href="vigilantes.html" class="ativo">♙ Vigilantes</a>
-      <a href="ocorrencias.html">△ Ocorrências</a>
-      <a href="relatorios.html">▤ Relatórios</a>
-      <a href="alertas.html">○ Alertas</a>
-      <a href="configuracoes.html">⚙ Configurações</a>
-    </nav>
+    <div class="menu">
+      <button>Visão Geral</button>
+      <button>Condomínios</button>
+      <button class="active">Vigilantes</button>
+      <button>Ocorrências</button>
+      <button>Relatórios</button>
+      <button>Alertas</button>
+      <button>Configurações</button>
+    </div>
+
   </aside>
 
+  <!-- MAIN -->
+
   <main class="main">
-    <header class="topo">
-      <div>
-        <h1>Vigilantes</h1>
-        <p>Cadastre dispositivos, agentes e organize a troca automática de turno.</p>
+
+    <div class="top">
+
+      <div class="title">
+        <h1>Cadastro de Vigilantes</h1>
+        <p>Gerencie e sincronize os vigilantes ativos.</p>
       </div>
 
-      <button class="btn-primary" id="btnNovoVigilante">
-        + Criar Vigilante
+      <button class="novo-btn">
+        + Novo Vigilante
       </button>
-    </header>
 
-    <section class="cards-resumo">
-      <div class="card-resumo">
-        <span>Total de Vigilantes</span>
-        <strong id="totalVigilantes">0</strong>
-      </div>
+    </div>
 
-      <div class="card-resumo">
-        <span>Dispositivos Vinculados</span>
-        <strong id="totalDispositivos">0</strong>
-      </div>
+    <div class="search">
+      <input type="text" placeholder="Buscar por nome ou telefone...">
+    </div>
 
-      <div class="card-resumo">
-        <span>Agentes em Turno</span>
-        <strong id="totalAgentes">0</strong>
-      </div>
+    <div class="grid" id="cards"></div>
 
-      <div class="card-resumo">
-        <span>Aguardando Cadastro</span>
-        <strong id="totalAguardando">0</strong>
-      </div>
-    </section>
-
-    <section class="area-vigilantes">
-      <div class="barra-lista">
-        <h2>Vigilantes cadastrados</h2>
-
-        <div class="busca">
-          <input type="text" id="campoBusca" placeholder="Buscar por código, dispositivo ou agente..." />
-        </div>
-      </div>
-
-      <div class="lista-vigilantes" id="listaVigilantes">
-        <div class="vazio">
-          Nenhum vigilante cadastrado ainda.
-        </div>
-      </div>
-    </section>
   </main>
 
-  <div class="modal" id="modalVigilante">
-    <div class="modal-card">
-      <div class="modal-topo">
-        <h2 id="modalTitulo">Novo Vigilante</h2>
-        <button id="btnFecharModal">×</button>
+  <!-- DRAWER -->
+
+  <aside class="drawer">
+
+    <h2>Dados do Vigilante</h2>
+
+    <div class="profile">
+
+      <div class="avatar" id="avatarText">
+        JS
       </div>
 
-      <form id="formVigilante">
-        <input type="hidden" id="vigilanteId" />
+      <div>
+        <h3 id="nomeView">João Silva</h3>
 
-        <label>
-          Código fixo
-          <input type="text" id="codigoVigilante" readonly />
-        </label>
-
-        <label>
-          Nome do dispositivo
-          <input type="text" id="nomeDispositivo" placeholder="Ex: Celular Portaria 01" />
-        </label>
-
-        <label>
-          Condomínio
-          <input type="text" id="nomeCondominio" placeholder="Ex: Moradas da Praia" />
-        </label>
-
-        <div class="linha-form">
-          <label>
-            Agente Turno 1
-            <input type="text" id="agenteTurno1" placeholder="Nome do agente" />
-          </label>
-
-          <label>
-            Início Turno 1
-            <input type="time" id="inicioTurno1" value="07:00" />
-          </label>
+        <div class="status">
+          Ativo
         </div>
+      </div>
 
-        <div class="linha-form">
-          <label>
-            Agente Turno 2
-            <input type="text" id="agenteTurno2" placeholder="Nome do agente" />
-          </label>
-
-          <label>
-            Início Turno 2
-            <input type="time" id="inicioTurno2" value="19:00" />
-          </label>
-        </div>
-
-        <div class="acoes-modal">
-          <button type="button" class="btn-secundario" id="btnCancelar">
-            Cancelar
-          </button>
-
-          <button type="submit" class="btn-primary">
-            Salvar Vigilante
-          </button>
-        </div>
-      </form>
     </div>
-  </div>
+
+    <div class="field">
+      <label>Nome</label>
+      <input id="nomeInput" type="text">
+    </div>
+
+    <div class="field">
+      <label>Telefone</label>
+      <input id="telefoneInput" type="text">
+    </div>
+
+    <div class="field">
+      <label>Rota do Vigilante</label>
+
+      <select id="rotaInput">
+        <option>Rota 1 - Moradas da Praia</option>
+        <option>Rota 2 - Condomínio Atlântico</option>
+        <option>Rota 3 - Praia Sul</option>
+      </select>
+    </div>
+
+    <div class="sync">
+
+      <div class="sync-title">
+        Sincronização
+      </div>
+
+      <div class="sync-box">
+        Por Celular
+      </div>
+
+      <div class="field">
+        <label>Telefone para Sincronização</label>
+        <input id="syncInput" type="text">
+      </div>
+
+    </div>
+
+    <div class="actions">
+
+      <button class="btn cancel">
+        Cancelar
+      </button>
+
+      <button class="btn save">
+        Salvar Alterações
+      </button>
+
+    </div>
+
+  </aside>
+
+<script>
+
+const vigilantes = [
+
+  {
+    nome:'João Silva',
+    telefone:'(47) 99123-4567',
+    rota:'Rota 1 - Moradas da Praia'
+  },
+
+  {
+    nome:'Maria Costa',
+    telefone:'(47) 99234-5678',
+    rota:'Rota 2 - Condomínio Atlântico'
+  },
+
+  {
+    nome:'Rafael Pereira',
+    telefone:'(47) 99345-6789',
+    rota:'Rota 3 - Praia Sul'
+  },
+
+  {
+    nome:'Lucas Carvalho',
+    telefone:'(47) 99567-8901',
+    rota:'Rota 1 - Moradas da Praia'
+  }
+
+];
+
+const cards = document.getElementById('cards');
+
+function getInitials(nome){
+  return nome
+    .split(' ')
+    .map(n => n[0])
+    .slice(0,2)
+    .join('');
+}
+
+function renderCards(){
+
+  cards.innerHTML = '';
+
+  vigilantes.forEach((vigilante,index)=>{
+
+    const card = document.createElement('div');
+
+    card.className = 'card';
+
+    card.innerHTML = `
+
+      <div class="avatar">
+        ${getInitials(vigilante.nome)}
+      </div>
+
+      <h3>${vigilante.nome}</h3>
+
+      <div class="phone">
+        ${vigilante.telefone}
+      </div>
+
+      <div class="status">
+        Ativo
+      </div>
+
+    `;
+
+    card.addEventListener('click',()=>{
+
+      document.getElementById('nomeView').innerText =
+      vigilante.nome;
+
+      document.getElementById('avatarText').innerText =
+      getInitials(vigilante.nome);
+
+      document.getElementById('nomeInput').value =
+      vigilante.nome;
+
+      document.getElementById('telefoneInput').value =
+      vigilante.telefone;
+
+      document.getElementById('rotaInput').value =
+      vigilante.rota;
+
+      document.getElementById('syncInput').value =
+      vigilante.telefone;
+
+    });
+
+    cards.appendChild(card);
+
+  });
+
+}
+
+renderCards();
+
+</script>
+
 </body>
 </html>
