@@ -1,1329 +1,2121 @@
-(() => {
-  try {
-    const colors = {
-      blue: "#1268ff",
-      green: "#22c76a",
-      amber: "#f0ae1b",
-      red: "#ff4d63",
-      violet: "#6e63ff",
-    };
-
-    const storageKey = "safeway.condominiums.v2";
-    const guardsStorageKey = "safeway.guards.v1";
-    const googleMapsApiKeyStorageKey = "safeway.googleMapsApiKey.v1";
-    const defaultCondos = [];
-
-    const defaultRoute = [
-      [90, 405],
-      [90, 340],
-      [165, 320],
-      [180, 232],
-      [300, 232],
-      [315, 315],
-      [438, 332],
-      [610, 330],
-      [612, 426],
-      [715, 426],
-      [795, 365],
-      [820, 255],
-      [735, 162],
-      [525, 160],
-      [512, 90],
-      [302, 88],
-      [300, 232],
-      [165, 232],
-      [165, 342],
-      [90, 340],
-    ];
-
-    const completedRoutes = [];
-
-    const checkpointHistory = [];
-
-    let tick = 0;
-    let condominiums = loadCondominiums();
-    let guards = loadGuards();
-    let selectedCondoId = condominiums[0]?.id || null;
-    let selectedGuardId = guards[0]?.id || null;
-
-    const condoList = document.getElementById("condoList");
-    const overviewCondoPanel = document.querySelector(".overview-condo-panel");
-    const condoSelectorToggle = document.getElementById("condoSelectorToggle");
-    const plannedLayer = document.getElementById("plannedLayer");
-    const completedLayer = document.getElementById("completedLayer");
-    const mapCheckpoints = document.getElementById("mapCheckpoints");
-    const mapGuards = document.getElementById("mapGuards");
-    const mapCanvas = document.querySelector(".map-canvas");
-    const topbar = document.getElementById("topbar");
-    const overviewPreciseMap = document.getElementById("overviewPreciseMap");
-    const overviewGoogleMapFrame = document.getElementById("overviewGoogleMapFrame");
-    const overviewCondoName = document.getElementById("overviewCondoName");
-    const activeTable = document.getElementById("activeTable");
-    const checkpointHistoryEl = document.getElementById("checkpointHistory");
-    const guardList = document.getElementById("guardList");
-    const guardForm = document.getElementById("guardForm");
-    const guardEditorOverlay = document.getElementById("guardEditorOverlay");
-    const closeGuardEditorButton = document.getElementById("closeGuardEditorButton");
-    const guardSearch = document.getElementById("guardSearch");
-    const guardName = document.getElementById("guardName");
-    const guardPhone = document.getElementById("guardPhone");
-    const guardAppCode = document.getElementById("guardAppCode");
-    const guardDeviceName = document.getElementById("guardDeviceName");
-    const guardCondo = document.getElementById("guardCondo");
-    const guardRoute = document.getElementById("guardRoute");
-    const guardShift = document.getElementById("guardShift");
-    const guardStatus = document.getElementById("guardStatus");
-    const guardCodePreview = document.getElementById("guardCodePreview");
-    const deleteGuardButton = document.getElementById("deleteGuardButton");
-    const adminCondoList = document.getElementById("adminCondoList");
-    const condoForm = document.getElementById("condoForm");
-    const condoEditorOverlay = document.getElementById("condoEditorOverlay");
-    const closeEditorButton = document.getElementById("closeEditorButton");
-    const adminSearch = document.getElementById("adminSearch");
-    const statusFilter = document.getElementById("statusFilter");
-    const condoImage = document.getElementById("condoImage");
-    const imagePreview = document.getElementById("imagePreview");
-    const removeImageButton = document.getElementById("removeImageButton");
-    const googleMapFrame = document.getElementById("googleMapFrame");
-    const googleMapLink = document.getElementById("googleMapLink");
-    const googleAreaLat = document.getElementById("googleAreaLat");
-    const googleAreaLng = document.getElementById("googleAreaLng");
-    const googleMapType = document.getElementById("googleMapType");
-    const googleMapZoom = document.getElementById("googleMapZoom");
-    const googleMapsApiKey = document.getElementById("googleMapsApiKey");
-    const googleMapsApiStatus = document.getElementById("googleMapsApiStatus");
-    const applyGoogleAreaButton = document.getElementById("applyGoogleAreaButton");
-    const deleteCondoButton = document.getElementById("deleteCondoButton");
-    const editRouteButton = document.getElementById("editRouteButton");
-    const saveRouteButton = document.getElementById("saveRouteButton");
-    const clearRouteButton = document.getElementById("clearRouteButton");
-    const routeCoordinatePanel = document.getElementById("routeCoordinatePanel");
-    const routePointName = document.getElementById("routePointName");
-    const routeGuardName = document.getElementById("routeGuardName");
-    const routeStartLat = document.getElementById("routeStartLat");
-    const routeStartLng = document.getElementById("routeStartLng");
-    const routeEndLat = document.getElementById("routeEndLat");
-    const routeEndLng = document.getElementById("routeEndLng");
-    const routePointList = document.getElementById("routePointList");
-    const addCoordinatePointButton = document.getElementById("addCoordinatePointButton");
-    const detailRouteNumber = document.getElementById("detailRouteNumber");
-    const detailGuardName = document.getElementById("detailGuardName");
-    const detailGuardStatus = document.getElementById("detailGuardStatus");
-    const detailRouteName = document.getElementById("detailRouteName");
-    const detailRoutePath = document.getElementById("detailRoutePath");
-    const detailNextPoint = document.getElementById("detailNextPoint");
-    const detailEta = document.getElementById("detailEta");
-    let currentImage = "";
-    let routeEditing = false;
-    let draftRoute = [];
-    let lastOverviewMapSrc = "";
-    let selectedRouteIndex = 0;
-    let googleMapsApiPromise = null;
-    let preciseMap = null;
-    let preciseMapMarkers = [];
-    let preciseMapLines = [];
-
-    function svg(tag, attrs = {}) {
-      const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
-      Object.entries(attrs).forEach(([key, value]) => element.setAttribute(key, value));
-      return element;
-    }
-
-    function pathFrom(points) {
-      return points.map((point, index) => `${index === 0 || point.move ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
-    }
-
-    function pointAt(points, progress) {
-      const looped = ((progress % 1) + 1) % 1;
-      const scaled = looped * (points.length - 1);
-      const index = Math.floor(scaled);
-      const next = Math.min(index + 1, points.length - 1);
-      const local = scaled - index;
-      const { x: x1, y: y1 } = points[index];
-      const { x: x2, y: y2 } = points[next];
-      return { x: x1 + (x2 - x1) * local, y: y1 + (y2 - y1) * local };
-    }
-
-    function partialPath(points, progress) {
-      const scaled = Math.min(progress, 0.98) * (points.length - 1);
-      const index = Math.floor(scaled);
-      const result = points.slice(0, index + 1);
-      const next = Math.min(index + 1, points.length - 1);
-      const local = scaled - index;
-      const { x: x1, y: y1 } = points[index];
-      const { x: x2, y: y2 } = points[next];
-      result.push({ x: x1 + (x2 - x1) * local, y: y1 + (y2 - y1) * local });
-      return pathFrom(result);
-    }
-
-    function loadCondominiums() {
-      try {
-        const stored = localStorage.getItem(storageKey);
-        if (!stored) return defaultCondos.map(normalizeCondo);
-        const parsed = JSON.parse(stored);
-        return Array.isArray(parsed) ? parsed.map(normalizeCondo) : defaultCondos.map(normalizeCondo);
-      } catch {
-        return defaultCondos.map(normalizeCondo);
-      }
-    }
-
-    function normalizeCondo(condo) {
-      const routeSegments = normalizeRouteSegments(condo.patrolRouteSegments, condo.patrolRouteGeo);
-      return {
-        id: condo.id || `condo-${Date.now()}`,
-        name: condo.name || "Condomínio sem nome",
-        deviceLinked: typeof condo.deviceLinked === "boolean" ? condo.deviceLinked : condo.status === "Online",
-        address: condo.address || "",
-        city: condo.city || "",
-        state: condo.state || "",
-        image: condo.image || "",
-        googleAreaLat: condo.googleAreaLat || condo.lat || "",
-        googleAreaLng: condo.googleAreaLng || condo.lng || "",
-        googleMapType: condo.googleMapType || "k",
-        googleMapZoom: condo.googleMapZoom || "18",
-        patrolRoute: Array.isArray(condo.patrolRoute) ? condo.patrolRoute : [],
-        patrolRouteGeo: routeSegmentsToPoints(routeSegments),
-        patrolRouteSegments: routeSegments,
-        notes: condo.notes || "",
-      };
-    }
-
-    function normalizeRouteSegments(segments, legacyPoints) {
-      if (Array.isArray(segments) && segments.length) {
-        return segments
-          .map((segment, index) => ({
-            name: segment.name || `Rota ${index + 1}`,
-            guardName: segment.guardName || "",
-            guardStatus: segment.guardStatus || "Aguardando cadastro",
-            progress: Number.isFinite(Number(segment.progress)) ? Number(segment.progress) : 0,
-            startLat: normalizeCoordinate(segment.startLat),
-            startLng: normalizeCoordinate(segment.startLng),
-            endLat: normalizeCoordinate(segment.endLat),
-            endLng: normalizeCoordinate(segment.endLng),
-          }))
-          .filter((segment) => segment.startLat && segment.startLng && segment.endLat && segment.endLng);
-      }
-
-      if (!Array.isArray(legacyPoints) || legacyPoints.length < 2) return [];
-      return legacyPoints.slice(0, -1).map((point, index) => {
-        const next = legacyPoints[index + 1];
-        return {
-          name: `Rota ${index + 1}`,
-          guardName: "",
-          guardStatus: "Aguardando cadastro",
-          progress: 0,
-          startLat: normalizeCoordinate(point.lat),
-          startLng: normalizeCoordinate(point.lng),
-          endLat: normalizeCoordinate(next.lat),
-          endLng: normalizeCoordinate(next.lng),
-        };
-      });
-    }
-
-    function routeSegmentsToPoints(segments) {
-      if (!Array.isArray(segments) || !segments.length) return [];
-      return segments.flatMap((segment, index) => {
-        const start = {
-          name: `${segment.name || `Rota ${index + 1}`} início`,
-          lat: segment.startLat,
-          lng: segment.startLng,
-        };
-        const end = {
-          name: `${segment.name || `Rota ${index + 1}`} fim`,
-          lat: segment.endLat,
-          lng: segment.endLng,
-        };
-        start.move = index > 0;
-        return [start, end];
-      });
-    }
-
-    function saveCondominiums() {
-      localStorage.setItem(storageKey, JSON.stringify(condominiums));
-    }
-
-    function generateGuardCode() {
-      return `SAFE-${Math.floor(1000 + Math.random() * 9000)}`;
-    }
-
-    function normalizeGuard(guard = {}, index = 0) {
-      const progress = Number(guard.progress);
-      const routeIndex = Number(guard.routeIndex);
-      return {
-        id: guard.id || `guard-${Date.now()}-${index}`,
-        name: guard.name || "Vigilante sem nome",
-        phone: guard.phone || "",
-        appCode: guard.appCode || generateGuardCode(),
-        deviceName: guard.deviceName || "",
-        condoId: guard.condoId || "",
-        routeIndex: Number.isFinite(routeIndex) ? routeIndex : 0,
-        shift: guard.shift || "06:00 - 18:00",
-        status: guard.status || "Aguardando sincronização",
-        progress: Number.isFinite(progress) ? Math.max(0, Math.min(100, progress)) : 0,
-        color: guard.color || colors.green,
-        routeOffset: Number.isFinite(Number(guard.routeOffset)) ? Number(guard.routeOffset) : 0,
-      };
-    }
-
-    function loadGuards() {
-      try {
-        const stored = localStorage.getItem(guardsStorageKey);
-        if (!stored) return [];
-        const parsed = JSON.parse(stored);
-        return Array.isArray(parsed) ? parsed.map(normalizeGuard) : [];
-      } catch {
-        return [];
-      }
-    }
-
-    function saveGuards() {
-      localStorage.setItem(guardsStorageKey, JSON.stringify(guards));
-    }
-
-    function activeGuard() {
-      return guards.find((guard) => guard.id === selectedGuardId) || guards[0] || null;
-    }
-
-    function openCondoEditor() {
-      condoEditorOverlay.classList.add("open");
-      condoEditorOverlay.setAttribute("aria-hidden", "false");
-    }
-
-    function closeCondoEditor() {
-      condoEditorOverlay.classList.remove("open");
-      condoEditorOverlay.setAttribute("aria-hidden", "true");
-    }
-
-    function activeCondo() {
-      return condominiums.find((condo) => condo.id === selectedCondoId) || condominiums[0] || null;
-    }
-
-    function currentGoogleMapsApiKey() {
-      return (googleMapsApiKey.value || localStorage.getItem(googleMapsApiKeyStorageKey) || "").trim();
-    }
-
-    function saveGoogleMapsApiKey() {
-      const key = googleMapsApiKey.value.trim();
-      if (key) {
-        localStorage.setItem(googleMapsApiKeyStorageKey, key);
-        googleMapsApiStatus.textContent = "Chave salva. O painel tentará usar o modo preciso.";
-      } else {
-        localStorage.removeItem(googleMapsApiKeyStorageKey);
-        googleMapsApiStatus.textContent = "Sem chave: o painel usa prévia visual aproximada.";
-      }
-      googleMapsApiPromise = null;
-      preciseMap = null;
-      renderPreciseOverviewMap(activeCondo());
-    }
-
-    function loadGoogleMapsApi() {
-      const key = currentGoogleMapsApiKey();
-      if (!key) return Promise.resolve(false);
-      if (window.google?.maps) return Promise.resolve(true);
-      if (googleMapsApiPromise) return googleMapsApiPromise;
-      googleMapsApiStatus.textContent = "Carregando modo preciso do Google Maps...";
-      googleMapsApiPromise = new Promise((resolve) => {
-        window.__safewayGoogleMapsReady = () => resolve(true);
-        const script = document.createElement("script");
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&callback=__safewayGoogleMapsReady&v=weekly`;
-        script.async = true;
-        script.defer = true;
-        script.onerror = () => resolve(false);
-        document.head.appendChild(script);
-      });
-      return googleMapsApiPromise;
-    }
-
-    function clearPreciseMapOverlays() {
-      preciseMapMarkers.forEach((marker) => marker.setMap(null));
-      preciseMapLines.forEach((line) => line.setMap(null));
-      preciseMapMarkers = [];
-      preciseMapLines = [];
-    }
-
-    async function renderPreciseOverviewMap(condo) {
-      const lat = normalizeCoordinate(condo?.googleAreaLat);
-      const lng = normalizeCoordinate(condo?.googleAreaLng);
-      const hasApi = await loadGoogleMapsApi();
-      if (!hasApi || !lat || !lng) {
-        mapCanvas.classList.remove("precise");
-        if (currentGoogleMapsApiKey()) googleMapsApiStatus.textContent = "Não foi possível carregar a API. Confira a chave e o domínio liberado.";
-        return;
-      }
-
-      const center = { lat: Number(lat), lng: Number(lng) };
-      const mapTypeId = condo.googleMapType === "m" ? "roadmap" : "satellite";
-      mapCanvas.classList.add("precise");
-      googleMapsApiStatus.textContent = "Modo preciso ativo: rotas desenhadas dentro do Google Maps.";
-
-      if (!preciseMap) {
-        preciseMap = new google.maps.Map(overviewPreciseMap, {
-          center,
-          zoom: Number(condo.googleMapZoom || 18),
-          mapTypeId,
-          disableDefaultUI: true,
-          clickableIcons: false,
-          gestureHandling: "none",
-        });
-      } else {
-        preciseMap.setCenter(center);
-        preciseMap.setZoom(Number(condo.googleMapZoom || 18));
-        preciseMap.setMapTypeId(mapTypeId);
-      }
-
-      clearPreciseMapOverlays();
-      (condo.patrolRouteSegments || []).forEach((segment, index) => {
-        const start = {
-          lat: Number(normalizeCoordinate(segment.startLat)),
-          lng: Number(normalizeCoordinate(segment.startLng)),
-        };
-        const end = {
-          lat: Number(normalizeCoordinate(segment.endLat)),
-          lng: Number(normalizeCoordinate(segment.endLng)),
-        };
-        if (!Number.isFinite(start.lat) || !Number.isFinite(start.lng) || !Number.isFinite(end.lat) || !Number.isFinite(end.lng)) return;
-        const line = new google.maps.Polyline({
-          map: preciseMap,
-          path: [start, end],
-          strokeColor: colors.blue,
-          strokeOpacity: 0.95,
-          strokeWeight: 5,
-        });
-        line.addListener("click", () => selectRoute(index));
-        const marker = new google.maps.Marker({
-          map: preciseMap,
-          position: start,
-          label: String(index + 1).padStart(2, "0"),
-          title: segment.name || `Rota ${index + 1}`,
-        });
-        marker.addListener("click", () => selectRoute(index));
-        preciseMapLines.push(line);
-        preciseMapMarkers.push(marker);
-      });
-    }
-
-    function deviceStatus(condo) {
-      return condo.deviceLinked ? "Com dispositivo" : "Aguardando dispositivo";
-    }
-
-    function statusClass(condo) {
-      if (!condo.deviceLinked) return " attention";
-      return "";
-    }
-
-    function renderCondos() {
-      condoList.replaceChildren();
-      if (!condominiums.length) {
-        const empty = document.createElement("article");
-        empty.className = "condo-card empty";
-        empty.innerHTML = `
-          <div class="condo-photo"></div>
-          <div>
-            <strong>Nenhum condomínio cadastrado</strong>
-            <small>Crie o primeiro cadastro para liberar o mapa</small>
-          </div>
-        `;
-        condoList.appendChild(empty);
-        return;
-      }
-      condominiums.slice(0, 5).forEach((condo) => {
-        const card = document.createElement("article");
-        const photo = condo.image ? `<img src="${condo.image}" alt="${condo.name}" />` : "";
-        const routesCount = condo.patrolRouteSegments?.length || 0;
-        card.className = `condo-card${condo.id === selectedCondoId ? " active" : ""}`;
-        card.innerHTML = `
-          <div class="condo-photo">${photo}</div>
-          <div>
-            <strong>${condo.name}</strong>
-            <small>${routesCount} ${routesCount === 1 ? "rota cadastrada" : "rotas cadastradas"}</small>
-          </div>
-        `;
-        card.addEventListener("click", () => {
-          selectedCondoId = condo.id;
-          selectedRouteIndex = 0;
-          fillForm(condo);
-          overviewCondoPanel?.classList.remove("open");
-          renderAllCondos();
-        });
-        condoList.appendChild(card);
-      });
-    }
-
-    function renderAdminCondos() {
-      const term = adminSearch.value.trim().toLowerCase();
-      const status = statusFilter?.value || "Todos";
-      const filtered = condominiums.filter((condo) => {
-        const text = `${condo.name} ${condo.address} ${condo.city} ${condo.state}`.toLowerCase();
-        const deviceFilter = status === "Com dispositivo" ? condo.deviceLinked : status === "Sem dispositivo" ? !condo.deviceLinked : true;
-        return text.includes(term) && deviceFilter;
-      });
-
-      adminCondoList.replaceChildren();
-      if (!filtered.length) {
-        const empty = document.createElement("div");
-        empty.className = "admin-condo-card";
-        empty.innerHTML = "<div><strong>Nenhum condomínio encontrado</strong><small>Altere a busca ou crie um novo cadastro.</small></div>";
-        adminCondoList.appendChild(empty);
-        return;
-      }
-
-      filtered.forEach((condo) => {
-        const card = document.createElement("article");
-        card.className = `admin-condo-card${condo.id === selectedCondoId ? " active" : ""}`;
-        card.dataset.status = condo.deviceLinked ? "Com dispositivo" : "Sem dispositivo";
-        const imageMarkup = condo.image ? `<img src="${condo.image}" alt="${condo.name}" />` : "◇";
-        card.innerHTML = `
-          <div class="admin-condo-thumb">${imageMarkup}</div>
-          <div>
-            <strong>${condo.name}</strong>
-            <span>${condo.city || "Cidade"} ${condo.state || ""}</span>
-            <small>${condo.patrolRouteSegments?.length || 0} rotas cadastradas</small>
-          </div>
-        `;
-        card.addEventListener("click", () => {
-          selectedCondoId = condo.id;
-          selectedRouteIndex = 0;
-          fillForm(condo);
-          renderAllCondos();
-          openCondoEditor();
-        });
-        adminCondoList.appendChild(card);
-      });
-    }
-
-    function populateGuardCondoOptions() {
-      if (!guardCondo) return;
-      guardCondo.replaceChildren();
-      if (!condominiums.length) {
-        guardCondo.appendChild(new Option("Nenhum condomínio cadastrado", ""));
-        return;
-      }
-      condominiums.forEach((condo) => {
-        guardCondo.appendChild(new Option(condo.name, condo.id));
-      });
-    }
-
-    function populateGuardRouteOptions(condoId) {
-      if (!guardRoute) return;
-      guardRoute.replaceChildren();
-      const condo = condominiums.find((item) => item.id === condoId);
-      const routes = condo?.patrolRouteSegments || [];
-      if (!routes.length) {
-        guardRoute.appendChild(new Option("Nenhuma rota cadastrada", ""));
-        guardRoute.disabled = true;
-        return;
-      }
-      guardRoute.disabled = false;
-      routes.forEach((route, index) => {
-        guardRoute.appendChild(new Option(route.name || `Rota ${index + 1}`, String(index)));
-      });
-    }
-
-    function openGuardEditor() {
-      guardEditorOverlay?.classList.add("open");
-      guardEditorOverlay?.setAttribute("aria-hidden", "false");
-    }
-
-    function closeGuardEditor() {
-      guardEditorOverlay?.classList.remove("open");
-      guardEditorOverlay?.setAttribute("aria-hidden", "true");
-    }
-
-    function fillGuardForm(guard) {
-      const selected = arguments.length ? guard : activeGuard();
-      populateGuardCondoOptions();
-      const defaultCondoId = selected?.condoId || condominiums[0]?.id || "";
-      populateGuardRouteOptions(defaultCondoId);
-      document.getElementById("guardFormTitle").textContent = selected ? "Editar Vigilante" : "Novo Vigilante";
-      document.getElementById("guardFormSubtitle").textContent = selected
-        ? `${selected.name} · ${selected.deviceName || "Dispositivo sem nome"}`
-        : "Preencha os dados do vigilante e o código para sincronizar com o app.";
-      guardName.value = selected?.name || "";
-      guardPhone.value = selected?.phone || "";
-      guardAppCode.value = selected?.appCode || generateGuardCode();
-      guardDeviceName.value = selected?.deviceName || "";
-      guardCondo.value = defaultCondoId;
-      populateGuardRouteOptions(defaultCondoId);
-      guardRoute.value = selected?.routeIndex != null ? String(selected.routeIndex) : "0";
-      guardShift.value = selected?.shift || "06:00 - 18:00";
-      guardStatus.value = selected?.status || "Aguardando sincronização";
-      guardCodePreview.textContent = guardAppCode.value || "SAFE-0000";
-      deleteGuardButton.disabled = !selected;
-    }
-
-    function clearGuardForm() {
-      selectedGuardId = null;
-      guardForm.reset();
-      fillGuardForm(null);
-      openGuardEditor();
-    }
-
-    function guardRouteLabel(guard) {
-      const condo = condominiums.find((item) => item.id === guard.condoId);
-      const route = condo?.patrolRouteSegments?.[guard.routeIndex];
-      return route?.name || "Rota não definida";
-    }
-
-    function renderGuards() {
-      if (!guardList) return;
-      const term = (guardSearch?.value || "").trim().toLowerCase();
-      const filtered = guards.filter((guard) => {
-        const condo = condominiums.find((item) => item.id === guard.condoId);
-        const text = `${guard.name} ${guard.phone} ${guard.deviceName} ${guard.appCode} ${condo?.name || ""}`.toLowerCase();
-        return text.includes(term);
-      });
-
-      guardList.replaceChildren();
-      if (!filtered.length) {
-        const empty = document.createElement("div");
-        empty.className = "admin-condo-card guard-admin-card empty";
-        empty.innerHTML = "<div><strong>Nenhum vigilante cadastrado</strong><small>Clique em Novo Vigilante para criar o primeiro.</small></div>";
-        guardList.appendChild(empty);
-        return;
-      }
-
-      filtered.forEach((guard) => {
-        const condo = condominiums.find((item) => item.id === guard.condoId);
-        const initials = guard.name
-          .split(" ")
-          .filter(Boolean)
-          .slice(0, 2)
-          .map((part) => part[0])
-          .join("")
-          .toUpperCase();
-        const card = document.createElement("article");
-        card.className = `admin-condo-card guard-admin-card${guard.id === selectedGuardId ? " active" : ""}`;
-        card.innerHTML = `
-          <div class="guard-avatar">${initials || "VG"}</div>
-          <div>
-            <strong>${guard.name}</strong>
-            <span>${guard.status}</span>
-            <small>${guard.deviceName || "Dispositivo sem nome"} · ${guard.appCode}</small>
-            <small>${condo?.name || "Sem condomínio"} · ${guardRouteLabel(guard)}</small>
-            <small>Turno ${guard.shift}</small>
-          </div>
-        `;
-        card.addEventListener("click", () => {
-          selectedGuardId = guard.id;
-          fillGuardForm(guard);
-          renderGuards();
-          openGuardEditor();
-        });
-        guardList.appendChild(card);
-      });
-    }
-
-    function syncGuardAssignments() {
-      condominiums.forEach((condo) => {
-        (condo.patrolRouteSegments || []).forEach((segment) => {
-          segment.guardName = "";
-          segment.guardStatus = "Aguardando cadastro";
-          segment.progress = 0;
-        });
-      });
-
-      guards.forEach((guard) => {
-        const condo = condominiums.find((item) => item.id === guard.condoId);
-        const segment = condo?.patrolRouteSegments?.[guard.routeIndex];
-        if (!segment) return;
-        segment.guardName = guard.name;
-        segment.guardStatus = guard.status;
-        segment.progress = guard.status === "Em patrulha" ? Math.max(guard.progress, 1) : guard.progress;
-      });
-
-      condominiums.forEach((condo) => {
-        condo.patrolRouteSegments = normalizeRouteSegments(condo.patrolRouteSegments, []);
-        condo.patrolRouteGeo = routeSegmentsToPoints(condo.patrolRouteSegments);
-        condo.patrolRoute = projectRoute(condo.patrolRouteGeo).map((point) => [Math.round(point.x), Math.round(point.y)]);
-      });
-      saveCondominiums();
-    }
-
-    function saveGuardForm(event) {
-      event.preventDefault();
-      const routeIndex = Number(guardRoute.value);
-      const existing = guards.find((guard) => guard.id === selectedGuardId);
-      const payload = normalizeGuard({
-        ...(existing || {}),
-        id: existing?.id || `guard-${Date.now()}`,
-        name: guardName.value.trim(),
-        phone: guardPhone.value.trim(),
-        appCode: guardAppCode.value.trim() || generateGuardCode(),
-        deviceName: guardDeviceName.value.trim(),
-        condoId: guardCondo.value,
-        routeIndex: Number.isFinite(routeIndex) ? routeIndex : 0,
-        shift: guardShift.value,
-        status: guardStatus.value,
-      });
-
-      const existingIndex = guards.findIndex((guard) => guard.id === payload.id);
-      if (existingIndex >= 0) {
-        guards[existingIndex] = payload;
-      } else {
-        guards.unshift(payload);
-      }
-      selectedGuardId = payload.id;
-      saveGuards();
-      syncGuardAssignments();
-      renderAllCondos();
-      renderGuards();
-      updateOverviewCondoMap();
-      closeGuardEditor();
-    }
-
-    function deleteSelectedGuard() {
-      if (!selectedGuardId) return;
-      guards = guards.filter((guard) => guard.id !== selectedGuardId);
-      selectedGuardId = guards[0]?.id || null;
-      saveGuards();
-      syncGuardAssignments();
-      renderAllCondos();
-      renderGuards();
-      updateOverviewCondoMap();
-      closeGuardEditor();
-    }
-
-    function renderMap() {
-      plannedLayer.replaceChildren();
-      completedLayer.replaceChildren();
-      mapCheckpoints.replaceChildren();
-      mapGuards.replaceChildren();
-      mapCanvas.classList.toggle("empty", !activeCondo());
-      const activeRoute = getActiveRoute();
-      const segments = routeEditing ? draftRoute : activeCondo()?.patrolRouteSegments || [];
-
-      if (activeRoute.length > 1) {
-        segments.forEach((segment, index) => {
-          const segmentPoints = projectRoute(routeSegmentsToPoints([segment]));
-          if (segmentPoints.length < 2) return;
-          const d = pathFrom(segmentPoints);
-          const hit = svg("path", { class: "route-click-target", d, "data-route-index": index });
-          const line = svg("path", { class: `route-planned${index === selectedRouteIndex ? " selected" : ""}`, d });
-          hit.addEventListener("click", () => selectRoute(index));
-          plannedLayer.appendChild(hit);
-          plannedLayer.appendChild(line);
-        });
-        if (guards.length) {
-          completedLayer.appendChild(svg("path", { class: "route-completed", d: partialPath(activeRoute, 0.75 + Math.sin(tick / 5) * 0.02) }));
-        }
-      }
-
-      segments.forEach((segment, index) => {
-        const segmentPoints = projectRoute(routeSegmentsToPoints([segment]));
-        if (segmentPoints.length < 2) return;
-        const start = segmentPoints[0];
-        const end = segmentPoints[segmentPoints.length - 1];
-        const markerPoint = {
-          x: start.x + (end.x - start.x) * 0.5,
-          y: start.y + (end.y - start.y) * 0.5,
-        };
-        const pointColor = [colors.blue, colors.green, colors.violet, colors.amber][index % 4];
-        const routeMarker = svg("g", { class: "route-map-marker", "data-route-index": index });
-        routeMarker.appendChild(svg("circle", { class: "route-endpoint", cx: start.x, cy: start.y, r: 7 }));
-        routeMarker.appendChild(svg("circle", { class: "route-endpoint", cx: end.x, cy: end.y, r: 7 }));
-        routeMarker.appendChild(svg("circle", { class: "checkpoint-ring", cx: markerPoint.x, cy: markerPoint.y, r: 18, fill: pointColor }));
-        const label = svg("text", { class: "map-label", x: markerPoint.x, y: markerPoint.y + 1 });
-        label.textContent = String(index + 1).padStart(2, "0");
-        routeMarker.appendChild(label);
-        routeMarker.addEventListener("click", () => selectRoute(index));
-        mapCheckpoints.appendChild(routeMarker);
-      });
-
-      guards
-        .filter((guard) => !guard.condoId || guard.condoId === activeCondo()?.id)
-        .forEach((guard, index) => {
-        if (activeRoute.length < 2) return;
-        const baseProgress = Number(guard.progress) ? Number(guard.progress) / 100 : 0.12 + index * 0.12;
-        const moved = Math.max(0.02, Math.min(0.98, baseProgress)) + Math.sin((tick + index + 1) / 8) * 0.005;
-        const point = pointAt(activeRoute, moved);
-        mapGuards.appendChild(svg("circle", { class: "guard-dot", cx: point.x, cy: point.y, r: 8, fill: guard.color || colors.green }));
-      });
-      renderSelectedRouteDetails();
-    }
-
-    function getActiveRoute() {
-      if (routeEditing) return projectRoute(routeSegmentsToPoints(draftRoute));
-      const condo = activeCondo();
-      if (condo?.patrolRouteGeo?.length) return projectRoute(condo.patrolRouteGeo);
-      if (condo?.patrolRoute?.length) return condo.patrolRoute.map(([x, y]) => ({ x, y }));
-      return [];
-    }
-
-    function selectRoute(index) {
-      selectedRouteIndex = index;
-      renderMap();
-    }
-
-    function renderSelectedRouteDetails() {
-      const source = routeEditing ? draftRoute : activeCondo()?.patrolRouteSegments || [];
-      const segment = source[selectedRouteIndex] || source[0];
-      if (!segment) {
-        detailRouteNumber.textContent = "--";
-        detailGuardName.textContent = "Nenhum vigilante vinculado";
-        detailGuardStatus.textContent = "Selecione uma rota no mapa";
-        detailRouteName.textContent = "Rota: --";
-        detailRoutePath.textContent = "Nenhum percurso selecionado";
-        detailProgressText.textContent = "0%";
-        detailProgressBar.style.width = "0%";
-        detailNextPoint.textContent = "Nenhum ponto definido";
-        detailEta.textContent = "--:--";
-        return;
-      }
-      const progress = Math.max(0, Math.min(100, Number(segment.progress) || 0));
-      detailRouteNumber.textContent = String(source.indexOf(segment) + 1).padStart(2, "0");
-      detailGuardName.textContent = segment.guardName || "Vigilante não definido";
-      detailGuardStatus.textContent = segment.guardName ? segment.guardStatus || "Vinculado à rota" : "Aguardando cadastro";
-      detailRouteName.textContent = `Rota: ${segment.name || `Rota ${source.indexOf(segment) + 1}`}`;
-      detailRoutePath.textContent = `${segment.startLat}, ${segment.startLng} até ${segment.endLat}, ${segment.endLng}`;
-      detailProgressText.textContent = `${progress}%`;
-      detailProgressBar.style.width = `${progress}%`;
-      detailNextPoint.textContent = segment.name || "Fim da rota";
-      detailEta.textContent = progress ? "Em andamento" : "--:--";
-    }
-
-    function startRouteEditing() {
-      routeEditing = !routeEditing;
-      const condo = activeCondo();
-      draftRoute = condo?.patrolRouteSegments?.length ? condo.patrolRouteSegments.map((segment) => ({ ...segment })) : [];
-      mapCanvas.classList.toggle("editing", routeEditing);
-      editRouteButton.classList.toggle("active", routeEditing);
-      editRouteButton.textContent = routeEditing ? "Editando..." : "Editar rota";
-      renderRoutePointList();
-      renderMap();
-    }
-
-    function saveRoute() {
-      const condo = activeCondo();
-      if (!condo || !draftRoute.length) return;
-      condo.patrolRouteSegments = normalizeRouteSegments(draftRoute, []);
-      condo.patrolRouteGeo = routeSegmentsToPoints(condo.patrolRouteSegments);
-      condo.patrolRoute = projectRoute(condo.patrolRouteGeo).map((point) => [Math.round(point.x), Math.round(point.y)]);
-      routeEditing = false;
-      mapCanvas.classList.remove("editing");
-      editRouteButton.classList.remove("active");
-      editRouteButton.textContent = "Editar rota";
-      saveCondominiums();
-      renderRoutePointList();
-      renderMap();
-    }
-
-    function clearRoute() {
-      draftRoute = [];
-      const condo = activeCondo();
-      if (!routeEditing && condo) {
-        condo.patrolRoute = [];
-        condo.patrolRouteGeo = [];
-        condo.patrolRouteSegments = [];
-        saveCondominiums();
-      }
-      renderRoutePointList();
-      renderMap();
-    }
-
-    function addRoutePoint(event) {
-      event.preventDefault();
-      if (!routeEditing) startRouteEditing();
-      const startLat = normalizeCoordinate(routeStartLat.value);
-      const startLng = normalizeCoordinate(routeStartLng.value);
-      const endLat = normalizeCoordinate(routeEndLat.value);
-      const endLng = normalizeCoordinate(routeEndLng.value);
-      if (!startLat || !startLng || !endLat || !endLng) {
-        routeStartLat.focus();
-        return;
-      }
-      draftRoute.push({
-        name: routePointName.value.trim() || `Rota ${draftRoute.length + 1}`,
-        guardName: routeGuardName.value.trim(),
-        guardStatus: routeGuardName.value.trim() ? "Vinculado à rota" : "Aguardando cadastro",
-        progress: 0,
-        startLat,
-        startLng,
-        endLat,
-        endLng,
-      });
-      focusGoogleMapOnPoint({ lat: startLat, lng: startLng });
-      routePointName.value = "";
-      routeGuardName.value = "";
-      routeStartLat.value = "";
-      routeStartLng.value = "";
-      routeEndLat.value = "";
-      routeEndLng.value = "";
-      renderRoutePointList();
-      renderMap();
-    }
-
-    function renderRoutePointList() {
-      const source = routeEditing ? draftRoute : activeCondo()?.patrolRouteSegments || [];
-      routePointList.replaceChildren();
-      if (!source.length) {
-        const empty = document.createElement("span");
-        empty.className = "route-point-item";
-        empty.textContent = "Nenhuma rota adicionada";
-        routePointList.appendChild(empty);
-        return;
-      }
-      source.forEach((segment, index) => {
-        const item = document.createElement("span");
-        item.className = "route-point-item";
-        item.innerHTML = `
-          <b>${String(index + 1).padStart(2, "0")}</b>
-          <span>${segment.name || `Rota ${index + 1}`} · ${segment.guardName || "Sem vigilante"} · Início ${segment.startLat}, ${segment.startLng} · Fim ${segment.endLat}, ${segment.endLng}</span>
-          <button type="button" data-focus-route="${index}" data-route-edge="start" title="Ver início no Google">Início</button>
-          <button type="button" data-focus-route="${index}" data-route-edge="end" title="Ver fim no Google">Fim</button>
-        `;
-        routePointList.appendChild(item);
-      });
-    }
-
-    function projectRoute(routeGeo) {
-      const condo = activeCondo();
-      const centerLat = Number(normalizeCoordinate(condo?.googleAreaLat)) || Number(routeGeo[0]?.lat) || 0;
-      const centerLng = Number(normalizeCoordinate(condo?.googleAreaLng)) || Number(routeGeo[0]?.lng) || 0;
-      const zoom = Number(condo?.googleMapZoom || 18);
-      const centerPixel = mercatorPixel(centerLat, centerLng, zoom);
-      const viewWidth = 940;
-      const viewHeight = 520;
-      const canvasRect = mapCanvas.getBoundingClientRect();
-      const canvasWidth = canvasRect.width || viewWidth;
-      const canvasHeight = canvasRect.height || viewHeight;
-      return routeGeo
-        .map((point) => {
-          const lat = Number(normalizeCoordinate(point.lat));
-          const lng = Number(normalizeCoordinate(point.lng));
-          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-          const pixel = mercatorPixel(lat, lng, zoom);
-          const screenX = canvasWidth / 2 + (pixel.x - centerPixel.x);
-          const screenY = canvasHeight / 2 + (pixel.y - centerPixel.y);
-          const svgX = (screenX / canvasWidth) * viewWidth;
-          const svgY = (screenY / canvasHeight) * viewHeight;
-          return {
-            x: Math.max(0, Math.min(viewWidth, svgX)),
-            y: Math.max(0, Math.min(viewHeight, svgY)),
-            name: point.name || "",
-            lat: String(point.lat),
-            lng: String(point.lng),
-            move: Boolean(point.move),
-          };
-        })
-        .filter(Boolean);
-    }
-
-    function mercatorPixel(lat, lng, zoom) {
-      const siny = Math.max(-0.9999, Math.min(0.9999, Math.sin((lat * Math.PI) / 180)));
-      const scale = 256 * Math.pow(2, zoom);
-      return {
-        x: ((lng + 180) / 360) * scale,
-        y: (0.5 - Math.log((1 + siny) / (1 - siny)) / (4 * Math.PI)) * scale,
-      };
-    }
-
-    function distanceMeters(a, b) {
-      const radius = 6371000;
-      const lat1 = (Number(a.lat) * Math.PI) / 180;
-      const lat2 = (Number(b.lat) * Math.PI) / 180;
-      const deltaLat = ((Number(b.lat) - Number(a.lat)) * Math.PI) / 180;
-      const deltaLng = ((Number(b.lng) - Number(a.lng)) * Math.PI) / 180;
-      const h =
-        Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-        Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
-      return radius * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-    }
-
-    function nearestRouteDistanceMeters(position, routeGeo) {
-      if (!routeGeo?.length) return Infinity;
-      return Math.min(...routeGeo.map((point) => distanceMeters(position, point)));
-    }
-
-    function isGuardOffRoute(position, condo, toleranceMeters = 35) {
-      const distance = nearestRouteDistanceMeters(position, condo?.patrolRouteGeo || []);
-      return { offRoute: distance > toleranceMeters, distance };
-    }
-
-    function updateOverviewCondoMap() {
-      const condo = activeCondo();
-      if (!condo) {
-        overviewGoogleMapFrame.removeAttribute("src");
-        lastOverviewMapSrc = "";
-        mapCanvas.classList.remove("precise");
-        clearPreciseMapOverlays();
-        overviewCondoName.textContent = "Nenhum condomínio cadastrado";
-        return;
-      }
-      const zoom = condo.googleMapZoom || "18";
-      const mapType = condo.googleMapType || "k";
-      const lat = normalizeCoordinate(condo.googleAreaLat);
-      const lng = normalizeCoordinate(condo.googleAreaLng);
-      const addressQuery = [condo.address, condo.city, condo.state, "Brasil"].filter(Boolean).join(", ");
-      const encodedAddress = encodeURIComponent(addressQuery || "Brasil");
-      const nextSrc =
-        lat && lng
-          ? `https://www.google.com/maps?ll=${lat},${lng}&t=${mapType}&z=${zoom}&output=embed`
-          : `https://www.google.com/maps?q=${encodedAddress}&t=${mapType}&z=${zoom}&output=embed`;
-      if (overviewGoogleMapFrame.src !== nextSrc && lastOverviewMapSrc !== nextSrc) {
-        overviewGoogleMapFrame.src = nextSrc;
-        lastOverviewMapSrc = nextSrc;
-      }
-      overviewCondoName.textContent = condo.name || "Condomínio";
-      renderPreciseOverviewMap(condo);
-    }
-
-    function renderTable() {
-      activeTable.replaceChildren();
-      const header = document.createElement("div");
-      header.className = "table-row header";
-      header.innerHTML = "<span>Rota</span><span>Vigilante</span><span>Início</span><span>Fim</span><span>Tempo de percurso</span>";
-      activeTable.appendChild(header);
-
-      if (!completedRoutes.length) {
-        const empty = document.createElement("div");
-        empty.className = "table-row empty";
-        empty.innerHTML = "<span>Nenhuma rota concluída hoje</span><span>-</span><span>-</span><span>-</span><span>-</span>";
-        activeTable.appendChild(empty);
-        return;
-      }
-
-      completedRoutes.forEach((route) => {
-        const row = document.createElement("div");
-        row.className = "table-row";
-        row.innerHTML = `
-          <span>${route.name}</span>
-          <span>${route.guard}</span>
-          <span>${route.startedAt}</span>
-          <span>${route.finishedAt}</span>
-          <span class="table-status">${route.duration}</span>
-        `;
-        activeTable.appendChild(row);
-      });
-    }
-
-    function renderHistory() {
-      checkpointHistoryEl.replaceChildren();
-      if (!checkpointHistory.length) {
-        const item = document.createElement("div");
-        item.className = "checkpoint-item";
-        item.innerHTML = "<i></i><span>Nenhum ponto registrado</span><time>-</time>";
-        checkpointHistoryEl.appendChild(item);
-        return;
-      }
-      checkpointHistory.forEach((point) => {
-        const item = document.createElement("div");
-        item.className = `checkpoint-item${point.done ? " done" : ""}`;
-        item.innerHTML = `<i>${point.done ? "✓" : ""}</i><span>${point.name}</span><time>${point.time}</time>`;
-        checkpointHistoryEl.appendChild(item);
-      });
-    }
-
-    function updateMetricsFromCondos() {
-      const activeGuardsMetric = document.getElementById("activeGuardsMetric");
-      const openOccurrencesMetric = document.getElementById("openOccurrencesMetric");
-      if (activeGuardsMetric) {
-        activeGuardsMetric.textContent = String(guards.length);
-      }
-      if (openOccurrencesMetric) openOccurrencesMetric.textContent = "0";
-    }
-
-    function renderAllCondos() {
-      renderCondos();
-      renderAdminCondos();
-      renderGuards();
-      updateMetricsFromCondos();
-    }
-
-    function formValue(id) {
-      return document.getElementById(id).value.trim();
-    }
-
-    function fillForm(condo) {
-      const selected = condo || activeCondo();
-      if (!selected) return;
-      document.getElementById("formTitle").textContent = "Editar Condomínio";
-      document.getElementById("formSubtitle").textContent = selected.name;
-      document.getElementById("condoName").value = selected.name || "";
-      document.getElementById("condoAddress").value = selected.address || "";
-      document.getElementById("condoCity").value = selected.city || "";
-      document.getElementById("condoState").value = selected.state || "";
-      document.getElementById("condoNotes").value = selected.notes || "";
-      googleAreaLat.value = selected.googleAreaLat || "";
-      googleAreaLng.value = selected.googleAreaLng || "";
-      googleMapType.value = selected.googleMapType || "k";
-      googleMapZoom.value = selected.googleMapZoom || "18";
-      currentImage = selected.image || "";
-      routeEditing = false;
-      draftRoute = selected.patrolRouteSegments?.length ? selected.patrolRouteSegments.map((segment) => ({ ...segment })) : [];
-      editRouteButton.classList.remove("active");
-      editRouteButton.textContent = "Editar rota";
-      renderImagePreview();
-      renderRoutePointList();
-      updateGoogleMap(selected);
-      deleteCondoButton.disabled = condominiums.length <= 1;
-    }
-
-    function clearForm() {
-      selectedCondoId = null;
-      condoForm.reset();
-      document.getElementById("formTitle").textContent = "Novo Condomínio";
-      document.getElementById("formSubtitle").textContent = "Preencha os dados principais e adicione a imagem do condomínio.";
-      currentImage = "";
-      routeEditing = false;
-      draftRoute = [];
-      selectedRouteIndex = 0;
-      condoImage.value = "";
-      googleAreaLat.value = "";
-      googleAreaLng.value = "";
-      googleMapType.value = "k";
-      googleMapZoom.value = "18";
-      renderImagePreview();
-      renderRoutePointList();
-      updateGoogleMap(null);
-      deleteCondoButton.disabled = true;
-      renderAllCondos();
-      openCondoEditor();
-    }
-
-    function saveForm(event) {
-      event.preventDefault();
-      const payload = {
-        id: selectedCondoId || `condo-${Date.now()}`,
-        name: formValue("condoName"),
-        deviceLinked: condominiums.find((condo) => condo.id === selectedCondoId)?.deviceLinked || false,
-        address: formValue("condoAddress"),
-        city: formValue("condoCity"),
-        state: formValue("condoState").toUpperCase(),
-        image: currentImage,
-        googleAreaLat: formValue("googleAreaLat"),
-        googleAreaLng: formValue("googleAreaLng"),
-        googleMapType: formValue("googleMapType") || "k",
-        googleMapZoom: formValue("googleMapZoom") || "18",
-        patrolRoute: [],
-        patrolRouteGeo: [],
-        patrolRouteSegments: routeEditing
-          ? normalizeRouteSegments(draftRoute, [])
-          : condominiums.find((condo) => condo.id === selectedCondoId)?.patrolRouteSegments || normalizeRouteSegments(draftRoute, []),
-        notes: formValue("condoNotes"),
-      };
-      payload.patrolRouteGeo = routeSegmentsToPoints(payload.patrolRouteSegments);
-      payload.patrolRoute = projectRoute(payload.patrolRouteGeo).map((point) => [Math.round(point.x), Math.round(point.y)]);
-
-      const existingIndex = condominiums.findIndex((condo) => condo.id === payload.id);
-      if (existingIndex >= 0) {
-        condominiums[existingIndex] = payload;
-      } else {
-        condominiums.unshift(payload);
-      }
-
-      selectedCondoId = payload.id;
-      routeEditing = false;
-      draftRoute = payload.patrolRouteSegments.map((segment) => ({ ...segment }));
-      selectedRouteIndex = 0;
-      saveCondominiums();
-      fillForm(payload);
-      renderAllCondos();
-      updateOverviewCondoMap();
-      closeCondoEditor();
-    }
-
-    function deleteSelectedCondo() {
-      if (!selectedCondoId || condominiums.length <= 1) return;
-      condominiums = condominiums.filter((condo) => condo.id !== selectedCondoId);
-      selectedCondoId = condominiums[0]?.id || null;
-      saveCondominiums();
-      fillForm(activeCondo());
-      renderAllCondos();
-      updateOverviewCondoMap();
-      closeCondoEditor();
-    }
-
-    function renderImagePreview() {
-      if (!currentImage) {
-        imagePreview.innerHTML = "<span>Sem imagem cadastrada</span>";
-        return;
-      }
-      imagePreview.innerHTML = `<img src="${currentImage}" alt="Imagem do condomínio" />`;
-    }
-
-    function updateGoogleMap(condo) {
-      const selected = condo || {
-        address: formValue("condoAddress"),
-        city: formValue("condoCity"),
-        state: formValue("condoState"),
-        googleAreaLat: formValue("googleAreaLat"),
-        googleAreaLng: formValue("googleAreaLng"),
-        googleMapType: formValue("googleMapType") || "k",
-        googleMapZoom: formValue("googleMapZoom") || "18",
-      };
-      const zoom = selected.googleMapZoom || "18";
-      const mapType = selected.googleMapType || "k";
-      const addressQuery = [selected.address, selected.city, selected.state, "Brasil"].filter(Boolean).join(", ");
-      const lat = normalizeCoordinate(selected.googleAreaLat);
-      const lng = normalizeCoordinate(selected.googleAreaLng);
-      const hasCoordinates = lat && lng;
-      if (!hasCoordinates && !addressQuery) {
-        googleMapFrame.removeAttribute("src");
-        if (googleMapLink) googleMapLink.href = "https://www.google.com/maps";
-        return;
-      }
-      const query = hasCoordinates ? `${lat},${lng}` : addressQuery;
-      const encoded = encodeURIComponent(query);
-      googleMapFrame.src = `https://www.google.com/maps?q=${encoded}&t=${mapType}&z=${zoom}&output=embed`;
-      if (googleMapLink) {
-        googleMapLink.href = hasCoordinates
-          ? `https://www.google.com/maps/@${lat},${lng},${zoom}z/data=!3m1!1e3`
-          : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-      }
-    }
-
-    function focusGoogleMapOnPoint(point) {
-      const lat = normalizeCoordinate(point?.lat);
-      const lng = normalizeCoordinate(point?.lng);
-      if (!lat || !lng) return;
-      const zoom = formValue("googleMapZoom") || activeCondo()?.googleMapZoom || "19";
-      const mapType = formValue("googleMapType") || activeCondo()?.googleMapType || "k";
-      const encoded = encodeURIComponent(`${lat},${lng}`);
-      googleMapFrame.src = `https://www.google.com/maps?q=${encoded}&t=${mapType}&z=${zoom}&output=embed`;
-      if (googleMapLink) googleMapLink.href = `https://www.google.com/maps/@${lat},${lng},${zoom}z/data=!3m1!1e3`;
-    }
-
-    function normalizeCoordinate(value) {
-      const normalized = String(value || "")
-        .trim()
-        .replace(/\s+/g, "")
-        .replace(/,$/, "")
-        .replace(",", ".");
-      return /^-?\d+(?:\.\d+)?$/.test(normalized) ? normalized : "";
-    }
-
-    function handleImageUpload(event) {
-      const file = event.target.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        currentImage = String(reader.result || "");
-        renderImagePreview();
-      };
-      reader.readAsDataURL(file);
-    }
-
-    function updateClock() {
-      const now = new Date();
-      const time = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-      document.getElementById("sidebarClock").textContent = time;
-      document.getElementById("mapAge").textContent = activeCondo() ? String(10 + (tick % 4)) : "0";
-      document.getElementById("finishedRoutesMetric").textContent = "0";
-    }
-
-    function setView(viewName) {
-      document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
-      document.getElementById(`${viewName}View`)?.classList.add("active");
-      document.querySelectorAll("[data-view-button]").forEach((button) => {
-        button.classList.toggle("active", button.dataset.viewButton === viewName);
-      });
-      topbar.classList.toggle("hidden", viewName === "condominiums" || viewName === "guards");
-      if (viewName === "condominiums") {
-        fillForm(activeCondo());
-        renderAllCondos();
-      } else if (viewName === "guards") {
-        renderGuards();
-      } else if (viewName === "overview") {
-        updateOverviewCondoMap();
-      }
-    }
-
-    function render() {
-      tick += 1;
-      renderMap();
-      updateClock();
-    }
-
-    document.querySelectorAll("[data-view-button]").forEach((button) => {
-      button.addEventListener("click", () => setView(button.dataset.viewButton));
-    });
-    condoSelectorToggle?.addEventListener("click", (event) => {
-      event.stopPropagation();
-      overviewCondoPanel?.classList.toggle("open");
-    });
-    document.addEventListener("click", (event) => {
-      if (!overviewCondoPanel?.contains(event.target)) {
-        overviewCondoPanel?.classList.remove("open");
-      }
-    });
-    document.getElementById("newCondoButton").addEventListener("click", clearForm);
-    document.getElementById("resetFormButton").addEventListener("click", clearForm);
-    document.getElementById("newGuardButton").addEventListener("click", clearGuardForm);
-    document.getElementById("resetGuardFormButton").addEventListener("click", clearGuardForm);
-    condoForm.addEventListener("submit", saveForm);
-    guardForm.addEventListener("submit", saveGuardForm);
-    deleteCondoButton.addEventListener("click", deleteSelectedCondo);
-    deleteGuardButton.addEventListener("click", deleteSelectedGuard);
-    adminSearch.addEventListener("input", renderAdminCondos);
-    guardSearch.addEventListener("input", renderGuards);
-    statusFilter?.addEventListener("change", renderAdminCondos);
-    condoImage.addEventListener("change", handleImageUpload);
-    removeImageButton.addEventListener("click", () => {
-      currentImage = "";
-      condoImage.value = "";
-      renderImagePreview();
-    });
-    closeEditorButton.addEventListener("click", closeCondoEditor);
-    closeGuardEditorButton.addEventListener("click", closeGuardEditor);
-    condoEditorOverlay.addEventListener("click", (event) => {
-      if (event.target === condoEditorOverlay) closeCondoEditor();
-    });
-    guardEditorOverlay.addEventListener("click", (event) => {
-      if (event.target === guardEditorOverlay) closeGuardEditor();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && condoEditorOverlay.classList.contains("open")) closeCondoEditor();
-      if (event.key === "Escape" && guardEditorOverlay.classList.contains("open")) closeGuardEditor();
-    });
-    ["condoAddress", "condoCity", "condoState"].forEach((id) => {
-      document.getElementById(id).addEventListener("change", () => updateGoogleMap(null));
-    });
-    applyGoogleAreaButton.addEventListener("click", () => updateGoogleMap(null));
-    googleAreaLat.addEventListener("change", () => updateGoogleMap(null));
-    googleAreaLng.addEventListener("change", () => updateGoogleMap(null));
-    googleMapType.addEventListener("change", () => updateGoogleMap(null));
-    googleMapZoom.addEventListener("change", () => updateGoogleMap(null));
-    googleMapsApiKey.value = localStorage.getItem(googleMapsApiKeyStorageKey) || "";
-    googleMapsApiKey.addEventListener("change", saveGoogleMapsApiKey);
-    guardAppCode.addEventListener("input", () => {
-      guardCodePreview.textContent = guardAppCode.value.trim() || "SAFE-0000";
-    });
-    guardCondo.addEventListener("change", () => populateGuardRouteOptions(guardCondo.value));
-    editRouteButton.addEventListener("click", startRouteEditing);
-    saveRouteButton.addEventListener("click", saveRoute);
-    clearRouteButton.addEventListener("click", clearRoute);
-    addCoordinatePointButton.addEventListener("click", addRoutePoint);
-    routePointList.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-focus-route]");
-      if (!button) return;
-      const source = routeEditing ? draftRoute : activeCondo()?.patrolRouteSegments || [];
-      const segment = source[Number(button.dataset.focusRoute)];
-      if (!segment) return;
-      const isEnd = button.dataset.routeEdge === "end";
-      focusGoogleMapOnPoint({
-        lat: isEnd ? segment.endLat : segment.startLat,
-        lng: isEnd ? segment.endLng : segment.startLng,
-      });
-    });
-    [routePointName, routeGuardName, routeStartLat, routeStartLng, routeEndLat, routeEndLng].forEach((input) => {
-      input.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") addRoutePoint(event);
-      });
-    });
-
-    renderAllCondos();
-    renderTable();
-    renderHistory();
-    fillForm(activeCondo());
-    updateOverviewCondoMap();
-    render();
-    setInterval(render, 1200);
-    window.safewayPanelReady = true;
-  } catch (error) {
-    window.safewayPanelError = String(error && error.stack || error);
-    const message = document.createElement("pre");
-    message.style.cssText = "position:fixed;left:16px;right:16px;bottom:16px;z-index:9999;padding:16px;border:1px solid #ff4d63;border-radius:8px;background:#180b10;color:#ffd6dc;white-space:pre-wrap";
-    message.textContent = window.safewayPanelError;
-    document.body.appendChild(message);
+:root {
+  color-scheme: dark;
+  --bg: #040b14;
+  --side: #050d17;
+  --panel: #0d1a27;
+  --panel-2: #102030;
+  --line: #1b3145;
+  --line-soft: #142638;
+  --text: #edf6ff;
+  --muted: #90a4b8;
+  --blue: #1268ff;
+  --blue-soft: #0d56db;
+  --green: #22c76a;
+  --amber: #f0ae1b;
+  --red: #ff4d63;
+  --violet: #6e63ff;
+  --shadow: 0 22px 50px rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 52% 8%, rgba(18, 104, 255, 0.15), transparent 32%),
+    radial-gradient(circle at 82% 28%, rgba(34, 199, 106, 0.08), transparent 28%),
+    var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0a1724;
+  color: var(--text);
+  outline: 0;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 196px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 18px 10px;
+  border-right: 1px solid rgba(41, 74, 109, 0.45);
+  background:
+    linear-gradient(180deg, rgba(7, 17, 28, 0.98), rgba(4, 11, 20, 0.98)),
+    radial-gradient(circle at 0 0, rgba(18, 104, 255, 0.16), transparent 40%);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-inline: 7px;
+}
+
+.brand-shield {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 2px solid var(--blue);
+  border-radius: 10px;
+  color: var(--blue);
+  font-weight: 900;
+  overflow: hidden;
+  background: #081622;
+}
+
+.brand-shield img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 4px;
+}
+
+.brand strong,
+.brand span {
+  display: block;
+}
+
+.brand strong {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.brand span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.nav-list {
+  display: grid;
+  gap: 9px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 46px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: transparent;
+  color: #bdccda;
+  text-align: left;
+}
+
+.nav-item span {
+  display: grid;
+  width: 23px;
+  place-items: center;
+  color: #9db0c3;
+  font-weight: 900;
+}
+
+.nav-item:hover,
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(18, 104, 255, 0.95), rgba(18, 104, 255, 0.34));
+  color: white;
+  box-shadow: 0 0 0 1px rgba(87, 154, 255, 0.28), 0 16px 34px rgba(18, 104, 255, 0.24);
+}
+
+.nav-item.active span {
+  color: white;
+}
+
+.top-status span,
+.top-status small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.top-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
+  width: 310px;
+  min-width: 0;
+  padding: 11px 14px;
+  border: 1px solid rgba(42, 75, 109, 0.7);
+  border-radius: 8px;
+  background: rgba(11, 25, 39, 0.78);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  text-align: right;
+}
+
+.weather-chip {
+  padding-right: 12px;
+  border-right: 1px solid rgba(144, 164, 184, 0.18);
+  color: #d9e9f8;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.top-status span,
+.top-status strong,
+.top-status small {
+  display: block;
+}
+
+.top-status strong {
+  margin: 3px 0;
+  color: var(--green);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.top-status small {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.top-status i,
+.online-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 12px var(--green);
+}
+
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 22px 18px;
+}
+
+.view {
+  display: none;
+}
+
+.view.active {
+  display: block;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 64px;
+  margin-bottom: 0;
+}
+
+.topbar.hidden {
+  display: none;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.05;
+}
+
+.topbar p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.headline-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 10px;
+  border: 1px solid rgba(34, 199, 106, 0.24);
+  border-radius: 999px;
+  background: rgba(34, 199, 106, 0.12);
+  color: #54e38d;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(165px, 0.52fr) minmax(185px, 0.56fr) 310px;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.metric-card,
+.panel {
+  border: 1px solid rgba(39, 72, 104, 0.72);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(14, 28, 43, 0.86), rgba(8, 18, 30, 0.9)),
+    radial-gradient(circle at 20% 0, rgba(18, 104, 255, 0.11), transparent 38%);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.metric-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 72px;
+  padding: 10px 12px;
+  overflow: hidden;
+}
+
+.metric-card span,
+.metric-card small,
+.panel-title span {
+  color: var(--muted);
+}
+
+.metric-card span {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.metric-card small {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.metric-icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 15px;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.metric-icon strong {
+  color: currentColor;
+  font-size: 23px;
+  line-height: 1;
+}
+
+.metric-icon.blue {
+  background: rgba(18, 104, 255, 0.15);
+  color: #3386ff;
+}
+
+.metric-icon.green {
+  background: rgba(34, 199, 106, 0.13);
+  color: var(--green);
+}
+
+.metric-icon.amber {
+  background: rgba(240, 174, 27, 0.14);
+  color: var(--amber);
+}
+
+.metric-icon.violet {
+  background: rgba(110, 99, 255, 0.14);
+  color: var(--violet);
+}
+
+.metric-icon.red {
+  background: rgba(255, 77, 99, 0.12);
+  color: var(--red);
+}
+
+.spark {
+  position: absolute;
+  right: 10px;
+  bottom: 9px;
+  width: 48px;
+  height: 20px;
+  opacity: 0.9;
+}
+
+.spark path {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 3;
+}
+
+.spark.amber-line path {
+  stroke: var(--amber);
+}
+
+.spark.red-line path {
+  stroke: var(--red);
+}
+
+.operations-grid {
+  display: grid;
+  grid-template-columns: minmax(720px, 1fr) 310px;
+  gap: 14px;
+  align-items: start;
+}
+
+.admin-view {
+  min-width: 0;
+}
+
+.admin-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.admin-heading h2 {
+  margin: 0 0 5px;
+  font-size: 24px;
+}
+
+.admin-heading p,
+.editor-title p,
+.location-picker p,
+.admin-condo-card small {
+  margin: 0;
+  color: var(--muted);
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.admin-list-panel,
+.condo-editor {
+  padding: 16px;
+}
+
+.admin-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.admin-tools label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0a1724;
+}
+
+.admin-tools input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+}
+
+.admin-tools select {
+  min-height: 44px;
+  padding: 0 11px;
+}
+
+.admin-condo-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  max-height: 670px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.admin-condo-card {
+  display: grid;
+  grid-template-rows: 132px auto;
+  gap: 10px;
+  min-height: 220px;
+  padding: 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: #0a1724;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-condo-card.active {
+  border-color: var(--blue);
+  background: #102139;
+}
+
+.admin-condo-thumb {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(18, 104, 255, 0.18), rgba(34, 199, 106, 0.08)),
+    #081622;
+  color: #8fc0ff;
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.admin-condo-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-condo-card strong,
+.admin-condo-card span,
+.admin-condo-card small {
+  display: block;
+}
+
+.admin-condo-card strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-condo-card span {
+  margin: 5px 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-condo-card[data-status="Sem dispositivo"] span {
+  color: #7f91a5;
+}
+
+.guard-card-list {
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+}
+
+.guard-admin-card {
+  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-rows: auto;
+  align-items: center;
+  min-height: 132px;
+  padding: 14px;
+}
+
+.guard-admin-card.empty {
+  grid-template-columns: 1fr;
+}
+
+.guard-avatar {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border: 1px solid rgba(18, 104, 255, 0.65);
+  border-radius: 50%;
+  background: linear-gradient(145deg, rgba(18, 104, 255, 0.95), rgba(11, 57, 160, 0.92));
+  color: #eff6ff;
+  font-weight: 900;
+}
+
+.guard-admin-card span {
+  color: var(--green);
+}
+
+.guard-admin-card small + small {
+  margin-top: 3px;
+}
+
+.admin-card-actions {
+  display: none;
+}
+
+.editor-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 42px 18px;
+  overflow: auto;
+  background: rgba(2, 8, 14, 0.74);
+  backdrop-filter: blur(8px);
+}
+
+.editor-overlay.open {
+  display: flex;
+}
+
+.editor-overlay .condo-editor {
+  width: min(980px, 100%);
+  max-height: none;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.icon-button {
+  width: 42px;
+  padding: 0;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.mini-button {
+  min-width: 38px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0d1d2c;
+  color: #d8e6f4;
+}
+
+.editor-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.editor-title h2 {
+  margin: 0 0 5px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.form-grid label {
+  display: grid;
+  gap: 7px;
+  color: #c7d5e4;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.form-grid input,
+.form-grid select,
+.form-grid textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.form-grid textarea {
+  padding-block: 10px;
+}
+
+.sync-box {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(18, 104, 255, 0.38);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(18, 104, 255, 0.14), rgba(34, 199, 106, 0.08));
+}
+
+.sync-box strong {
+  color: #eff6ff;
+}
+
+.sync-box p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.sync-box code {
+  width: fit-content;
+  padding: 8px 12px;
+  border: 1px solid rgba(143, 192, 255, 0.3);
+  border-radius: 8px;
+  background: rgba(4, 12, 20, 0.7);
+  color: #8fc0ff;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.wide-field {
+  grid-column: 1 / -1;
+}
+
+.media-grid,
+.google-map-block {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: #0a1724;
+}
+
+.media-grid h3,
+.google-map-block h3 {
+  margin-bottom: 7px;
+  font-size: 15px;
+}
+
+.upload-box {
+  display: grid;
+  min-height: 44px;
+  margin: 14px 0 10px;
+  place-items: center;
+  border: 1px dashed #2d5f93;
+  border-radius: 8px;
+  background: rgba(18, 104, 255, 0.08);
+  color: #8fc0ff;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.upload-box input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.image-preview {
+  position: relative;
+  min-height: 210px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #081622;
+}
+
+.image-preview span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.image-preview img {
+  width: 100%;
+  height: 100%;
+  min-height: 210px;
+  object-fit: cover;
+}
+
+.google-map-block {
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
+.google-map-block iframe {
+  width: 100%;
+  min-height: 240px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #081622;
+}
+
+.google-map-block a {
+  grid-column: 2;
+  display: none;
+}
+
+.coordinate-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.coordinate-grid label,
+.map-link-field {
+  display: grid;
+  gap: 7px;
+  color: #c7d5e4;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.coordinate-grid input,
+.map-link-field input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.map-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.map-options label {
+  display: grid;
+  gap: 7px;
+  color: #c7d5e4;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.map-options select {
+  min-height: 42px;
+  padding: 0 10px;
+}
+
+.api-key-field {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+  color: #c7d5e4;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.api-key-field input {
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.api-key-note {
+  display: block;
+  margin: 8px 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.primary-button,
+.ghost-button,
+.danger-button {
+  min-height: 42px;
+  padding: 0 15px;
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.primary-button {
+  background: var(--blue);
+  color: white;
+}
+
+.ghost-button {
+  border: 1px solid var(--line);
+  background: #0a1724;
+}
+
+.danger-button {
+  border: 1px solid rgba(255, 77, 99, 0.35);
+  background: rgba(255, 77, 99, 0.1);
+  color: #ff8b99;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.panel {
+  min-width: 0;
+}
+
+.condo-panel {
+  padding: 12px;
+}
+
+.details-panel {
+  position: sticky;
+  top: 18px;
+  padding: 16px;
+  background:
+    linear-gradient(180deg, rgba(14, 28, 43, 0.92), rgba(8, 18, 30, 0.96)),
+    radial-gradient(circle at 50% 0, rgba(18, 104, 255, 0.14), transparent 36%);
+}
+
+.details-panel .panel-title {
+  margin-bottom: 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.details-panel .panel-title h2 {
+  color: #d6e5f4;
+  font-size: 13px;
+}
+
+.guard-profile {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+
+.profile-number {
+  display: grid;
+  width: 66px;
+  height: 66px;
+  place-items: center;
+  border: 4px solid rgba(18, 104, 255, 0.2);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(18, 104, 255, 0.92), rgba(18, 104, 255, 0.66)),
+    conic-gradient(var(--blue) 75%, rgba(45, 73, 105, 0.9) 0);
+  color: white;
+  font-size: 21px;
+  font-weight: 900;
+}
+
+.guard-profile strong {
+  display: block;
+  color: white;
+  font-size: 16px;
+  line-height: 1.1;
+}
+
+.guard-profile span {
+  display: inline-flex;
+  margin-top: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(34, 199, 106, 0.13);
+  color: #60e992;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.guard-profile small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+}
+
+.detail-section {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(144, 164, 184, 0.12);
+}
+
+.detail-section h3 {
+  margin-bottom: 10px;
+  color: #d7e6f5;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.detail-section p {
+  color: #c8d7e6;
+}
+
+.next-stop {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid rgba(42, 75, 109, 0.62);
+  border-radius: 8px;
+  background: rgba(5, 14, 24, 0.42);
+}
+
+.next-stop span {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.next-stop strong {
+  color: white;
+}
+
+.next-stop time {
+  color: #d7e6f5;
+  font-weight: 900;
+}
+
+.progress-track {
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(35, 58, 82, 0.8);
+  overflow: hidden;
+}
+
+.progress-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1268ff, #22c76a);
+}
+
+.action-button {
+  justify-content: center;
+  min-height: 46px;
+  border-radius: 8px;
+  background: rgba(18, 104, 255, 0.1);
+}
+
+.overview-condo-panel {
+  position: relative;
+  z-index: 20;
+  min-height: 72px;
+  padding: 10px;
+  overflow: visible;
+}
+
+.condo-selector-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.overview-condo-panel .condo-list {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.condo-selector-toggle {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  width: 40px;
+  height: 100%;
+  min-height: 50px;
+  place-items: center;
+  border: 1px solid rgba(76, 144, 255, 0.35);
+  border-radius: 8px;
+  background: rgba(18, 104, 255, 0.12);
+  color: #9fc4ff;
+  font-weight: 900;
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.overview-condo-panel.open .condo-selector-toggle {
+  transform: rotate(180deg);
+  background: rgba(18, 104, 255, 0.24);
+}
+
+.overview-condo-panel .search-row {
+  display: none;
+}
+
+.overview-condo-panel .condo-card {
+  display: none;
+  width: 100%;
+  min-width: 0;
+  min-height: 50px;
+  padding: 6px;
+}
+
+.overview-condo-panel .condo-card.active,
+.overview-condo-panel.open .condo-card {
+  display: grid;
+}
+
+.overview-condo-panel.open .condo-list {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 58px;
+  left: 10px;
+  z-index: 30;
+  max-height: 340px;
+  padding: 8px;
+  border: 1px solid rgba(76, 144, 255, 0.34);
+  border-radius: 8px;
+  background: rgba(5, 14, 24, 0.98);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  overflow: auto;
+}
+
+.overview-condo-panel .condo-photo {
+  width: 42px;
+  height: 42px;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 17px;
+}
+
+.panel-title h2,
+.map-header h2,
+.active-table h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.search-row label,
+.search-row button {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0a1724;
+}
+
+.search-row label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 13px;
+}
+
+.search-row input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: white;
+}
+
+.condo-list {
+  display: grid;
+  gap: 8px;
+  max-height: 614px;
+  overflow: auto;
+  padding-right: 0;
+}
+
+.condo-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 11px;
+  align-items: center;
+  min-height: 76px;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #0a1724;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.condo-card.active {
+  border-color: var(--blue);
+  background: linear-gradient(135deg, rgba(18, 104, 255, 0.22), rgba(8, 19, 30, 0.95));
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
+.condo-card:hover {
+  border-color: rgba(76, 144, 255, 0.52);
+  transform: translateY(-1px);
+}
+
+.condo-photo {
+  width: 58px;
+  height: 58px;
+  border-radius: 7px;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.18), transparent),
+    linear-gradient(90deg, #6a7d88, #253546);
+  overflow: hidden;
+}
+
+.condo-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.condo-photo:has(img)::before,
+.condo-photo:has(img)::after {
+  display: none;
+}
+
+.condo-photo::before,
+.condo-photo::after {
+  content: "";
+  display: block;
+  width: 24%;
+  height: 78%;
+  margin: 12% 0 0 12%;
+  float: left;
+  background: repeating-linear-gradient(#bdc8d1 0 7px, #31445a 7px 12px);
+}
+
+.condo-photo::after {
+  height: 62%;
+  margin-left: 8%;
+  background: repeating-linear-gradient(#d2b28d 0 7px, #4b342a 7px 12px);
+}
+
+.condo-card strong,
+.condo-card small {
+  display: block;
+}
+
+.condo-card strong {
+  overflow: hidden;
+  margin-top: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+}
+
+.condo-card small {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.wide-button {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0a1724;
+  color: #d8e6f4;
+}
+
+.map-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.map-header {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: min(420px, calc(100% - 28px));
+  padding: 10px 12px;
+  border: 1px solid rgba(45, 82, 118, 0.66);
+  border-radius: 8px;
+  background: rgba(5, 14, 24, 0.74);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(12px);
+}
+
+.map-header button {
+  min-height: 42px;
+  padding: 0 15px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0b1927;
+}
+
+.route-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #081622;
+}
+
+.route-actions button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #b9c9d9;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.route-actions button.active {
+  border-color: var(--blue);
+  background: rgba(18, 104, 255, 0.22);
+  color: #8fc0ff;
+}
+
+.route-setup-block {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #0c1a28, #081522);
+}
+
+.route-setup-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 12px;
+}
+
+.route-setup-heading h3 {
+  margin-bottom: 7px;
+  font-size: 15px;
+}
+
+.route-setup-heading p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.route-coordinate-panel {
+  display: none;
+  gap: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.route-coordinate-panel.active {
+  display: grid;
+}
+
+.route-coordinate-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.route-coordinate-fields label:nth-child(1),
+.route-coordinate-fields label:nth-child(2) {
+  grid-column: span 2;
+}
+
+.route-coordinate-panel label {
+  display: grid;
+  gap: 6px;
+  color: #c7d5e4;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.route-coordinate-panel input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.route-coordinate-panel button {
+  grid-column: 1 / -1;
+  min-height: 44px;
+  padding: 0 13px;
+  border: 1px solid var(--blue);
+  border-radius: 8px;
+  background: rgba(18, 104, 255, 0.22);
+  color: #cfe2ff;
+  font-weight: 800;
+}
+
+.route-point-list {
+  display: grid;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.route-point-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0a1724;
+  color: #b9c9d9;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.route-point-item b {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(18, 104, 255, 0.2);
+  color: #8fc0ff;
+}
+
+.route-point-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.route-point-item button {
+  min-height: 24px;
+  padding: 0 9px;
+  border: 1px solid rgba(18, 104, 255, 0.6);
+  border-radius: 999px;
+  background: rgba(18, 104, 255, 0.2);
+  color: #cfe2ff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.route-point-item button:hover {
+  border-color: var(--blue);
+  background: rgba(18, 104, 255, 0.34);
+}
+
+.map-canvas {
+  position: relative;
+  height: 520px;
+  background: #08131e;
+  overflow: hidden;
+}
+
+.map-canvas.editing {
+  cursor: crosshair;
+}
+
+.map-canvas.empty svg {
+  display: none;
+}
+
+.map-canvas.empty::after {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: var(--muted);
+  content: "Cadastre um condomínio e defina as coordenadas para exibir o mapa.";
+  text-align: center;
+  font-weight: 800;
+}
+
+.overview-precise-map {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: none;
+}
+
+.overview-google-map {
+  position: absolute;
+  top: -72px;
+  left: 0;
+  z-index: 0;
+  width: 100%;
+  height: calc(100% + 144px);
+  border: 0;
+  filter: saturate(0.92) brightness(0.62) contrast(1.08);
+  pointer-events: none;
+}
+
+.map-canvas::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 4;
+  height: 74px;
+  background: linear-gradient(180deg, rgba(8, 19, 30, 0.0), rgba(8, 19, 30, 0.88) 45%, #08131e);
+  pointer-events: none;
+  content: "";
+}
+
+.map-canvas.precise .overview-precise-map {
+  display: block;
+}
+
+.map-canvas.precise .overview-google-map,
+.map-canvas.empty .overview-google-map {
+  display: none;
+}
+
+.map-canvas.precise svg {
+  display: none;
+}
+
+.map-canvas svg {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+}
+
+.route-click-target {
+  cursor: pointer;
+  pointer-events: stroke;
+  stroke: transparent;
+  stroke-width: 24;
+  fill: none;
+}
+
+.route-click-target:hover + .route-planned,
+.route-planned.selected {
+  stroke: #8fc0ff;
+  filter: drop-shadow(0 0 8px rgba(18, 104, 255, 0.7));
+}
+
+.route-editor-hint {
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  z-index: 3;
+  display: none;
+  max-width: 360px;
+  padding: 10px 12px;
+  border: 1px solid rgba(18, 104, 255, 0.48);
+  border-radius: 8px;
+  background: rgba(6, 16, 27, 0.88);
+  color: #cfe2ff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.map-canvas.editing .route-editor-hint {
+  display: block;
+}
+
+.map-canvas svg > rect,
+.map-canvas svg > path[fill],
+.map-canvas .street,
+.map-canvas .block,
+.map-canvas .leisure {
+  display: none;
+}
+
+.street {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-linecap: round;
+  stroke-width: 30;
+}
+
+.street.narrow {
+  stroke-width: 18;
+}
+
+.block {
+  fill: rgba(110, 133, 149, 0.36);
+  stroke: rgba(159, 183, 199, 0.28);
+  stroke-width: 3;
+}
+
+.leisure {
+  fill: rgba(70, 124, 120, 0.25);
+  stroke: rgba(86, 196, 170, 0.35);
+  stroke-width: 3;
+}
+
+.route-planned {
+  fill: none;
+  stroke: #2476ff;
+  stroke-dasharray: 8 10;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4;
+  opacity: 0.8;
+}
+
+.route-completed {
+  fill: none;
+  stroke: #1480ff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 6;
+}
+
+.route-shadow {
+  fill: none;
+  stroke: rgba(0, 0, 0, 0.35);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 12;
+}
+
+.map-point,
+.guard-dot {
+  stroke: #eaf4ff;
+  stroke-width: 3;
+}
+
+.checkpoint-ring {
+  fill: rgba(18, 104, 255, 0.95);
+  stroke: #eaf4ff;
+  stroke-width: 4;
+}
+
+.route-map-marker {
+  cursor: pointer;
+}
+
+.route-endpoint {
+  fill: #60cc82;
+  stroke: #eaf4ff;
+  stroke-width: 2;
+  opacity: 0.95;
+}
+
+.map-label {
+  fill: white;
+  font-size: 20px;
+  font-weight: 900;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.map-legend {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: -58px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-soft);
+  background: linear-gradient(180deg, rgba(5, 14, 24, 0.72), rgba(8, 19, 30, 0.96));
+  color: var(--muted);
+  font-size: 12px;
+  backdrop-filter: blur(12px);
+}
+
+.map-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.line-solid,
+.line-dashed {
+  width: 28px;
+  height: 0;
+  border-top: 3px solid #2685ff;
+}
+
+.line-dashed {
+  border-top-style: dashed;
+}
+
+.point-blue,
+.point-green {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #2685ff;
+}
+
+.point-green {
+  background: var(--green);
+}
+
+.active-table {
+  max-height: 284px;
+  padding: 16px;
+  background: rgba(7, 17, 28, 0.74);
+  overflow: hidden;
+}
+
+.table {
+  display: grid;
+  margin-top: 12px;
+  max-height: 188px;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-color: rgba(76, 144, 255, 0.55) rgba(16, 31, 47, 0.7);
+}
+
+.table::-webkit-scrollbar {
+  width: 7px;
+}
+
+.table::-webkit-scrollbar-track {
+  border-radius: 99px;
+  background: rgba(16, 31, 47, 0.7);
+}
+
+.table::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: rgba(76, 144, 255, 0.55);
+}
+
+.table-row {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr .8fr .8fr 1fr;
+  gap: 8px;
+  align-items: center;
+  min-height: 43px;
+  border-bottom: 1px solid var(--line-soft);
+  color: #c3d2e1;
+  font-size: 12px;
+}
+
+.table-row.header {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.guard-chip {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  margin-right: 8px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--blue);
+  color: white;
+  font-weight: 900;
+}
+
+.table-status {
+  color: var(--green);
+  font-weight: 800;
+}
+
+.mini-progress {
+  display: inline-block;
+  width: 76px;
+  height: 7px;
+  margin-left: 8px;
+  border-radius: 99px;
+  background: #162a3c;
+  vertical-align: middle;
+}
+
+.mini-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+}
+
+.guard-profile {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.profile-number {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--blue);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.guard-profile strong,
+.guard-profile span,
+.guard-profile small {
+  display: block;
+}
+
+.guard-profile span {
+  margin: 4px 0;
+  color: var(--green);
+  font-weight: 800;
+}
+
+.guard-profile small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.detail-section {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.detail-section:last-child {
+  border-bottom: 0;
+}
+
+.detail-section h3 {
+  margin-bottom: 10px;
+  font-size: 15px;
+}
+
+.detail-section p,
+.progress-label,
+.next-stop span,
+.checkpoint-item {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 22px;
+}
+
+.progress-label strong {
+  color: white;
+}
+
+.progress-track {
+  height: 8px;
+  margin-top: 9px;
+  border-radius: 99px;
+  background: #162a3c;
+}
+
+.progress-track i {
+  display: block;
+  width: 75%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+}
+
+.next-stop {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px 12px;
+  margin-top: 18px;
+}
+
+.next-stop span {
+  grid-column: 1 / -1;
+}
+
+.next-stop time {
+  color: white;
+}
+
+.checkpoint-list {
+  display: grid;
+  gap: 13px;
+}
+
+.checkpoint-item {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.checkpoint-item i {
+  display: grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  border-radius: 50%;
+  border: 2px solid var(--blue);
+  color: white;
+  font-size: 9px;
+}
+
+.checkpoint-item.done i {
+  border-color: var(--green);
+  background: var(--green);
+}
+
+.action-button {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0a1724;
+  text-align: left;
+  padding: 0 16px;
+}
+
+.action-button.message {
+  color: #6aa8ff;
+}
+
+.action-button.radio {
+  color: var(--green);
+}
+
+.action-button.warning {
+  color: var(--red);
+}
+
+.details-panel {
+  position: sticky;
+  top: 18px;
+  padding: 16px;
+  background:
+    linear-gradient(180deg, rgba(14, 28, 43, 0.92), rgba(8, 18, 30, 0.96)),
+    radial-gradient(circle at 50% 0, rgba(18, 104, 255, 0.14), transparent 36%);
+}
+
+.details-panel .panel-title {
+  margin-bottom: 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.details-panel .panel-title h2 {
+  color: #d6e5f4;
+  font-size: 13px;
+}
+
+.details-panel .guard-profile {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(144, 164, 184, 0.12);
+}
+
+.details-panel .profile-number {
+  display: grid;
+  width: 66px;
+  height: 66px;
+  place-items: center;
+  border: 4px solid rgba(18, 104, 255, 0.2);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(18, 104, 255, 0.92), rgba(18, 104, 255, 0.66)),
+    conic-gradient(var(--blue) 75%, rgba(45, 73, 105, 0.9) 0);
+  color: white;
+  font-size: 21px;
+  font-weight: 900;
+}
+
+.details-panel .guard-profile strong {
+  color: white;
+  font-size: 16px;
+  line-height: 1.1;
+}
+
+.details-panel .guard-profile span {
+  display: inline-flex;
+  margin: 6px 0 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(34, 199, 106, 0.13);
+  color: #60e992;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.details-panel .guard-profile small {
+  margin-top: 6px;
+}
+
+.details-panel .detail-section {
+  padding: 18px 0 0;
+  margin-top: 18px;
+  border-top: 1px solid rgba(144, 164, 184, 0.12);
+  border-bottom: 0;
+}
+
+.details-panel .detail-section h3 {
+  color: #d7e6f5;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.details-panel .next-stop {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid rgba(42, 75, 109, 0.62);
+  border-radius: 8px;
+  background: rgba(5, 14, 24, 0.42);
+}
+
+.details-panel .progress-track {
+  height: 9px;
+  overflow: hidden;
+  background: rgba(35, 58, 82, 0.8);
+}
+
+.details-panel .progress-track i {
+  background: linear-gradient(90deg, #1268ff, #22c76a);
+}
+
+.details-panel .action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 104, 255, 0.1);
+  text-align: center;
+}
+
+@media (max-width: 1450px) {
+  .app-shell {
+    grid-template-columns: 196px minmax(0, 1fr);
   }
-})();
+
+  .operations-grid {
+    grid-template-columns: minmax(520px, 1fr) 260px;
+  }
+
+  .summary-grid {
+    grid-template-columns: minmax(260px, 1fr) minmax(150px, 0.52fr) minmax(170px, 0.56fr) 260px;
+  }
+
+  .metric-card {
+    padding: 10px 11px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .operations-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .condo-list {
+    max-height: none;
+  }
+}
+
+@media (max-width: 780px) {
+  .app-shell {
+    display: block;
+  }
+
+  .sidebar {
+    position: static;
+  }
+
+  .dashboard {
+    padding: 16px;
+  }
+
+  .topbar,
+  .top-status {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-heading,
+  .editor-title,
+  .form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-tools,
+  .form-grid,
+  .media-grid,
+  .google-map-block {
+    grid-template-columns: 1fr;
+  }
+
+  .google-map-block a {
+    grid-column: auto;
+  }
+
+  .map-options,
+  .coordinate-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .map-canvas {
+    height: 360px;
+  }
+
+  .route-actions {
+    justify-content: flex-start;
+  }
+
+  .route-setup-heading {
+    grid-template-columns: 1fr;
+  }
+
+  .route-coordinate-panel,
+  .route-coordinate-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .table-row {
+    grid-template-columns: 1fr;
+    gap: 5px;
+    padding: 12px 0;
+  }
+
+  .table-row.header {
+    display: none;
+  }
+}
