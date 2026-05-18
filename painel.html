@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Safeway Monitoramento</title>
-    <link rel="stylesheet" href="painel.css?v=31" />
+    <link rel="stylesheet" href="painel.css?v=34" />
   </head>
   <body>
     <div class="app-shell">
@@ -53,7 +53,8 @@
         <section class="summary-grid" aria-label="Resumo operacional">
           <aside class="condo-panel panel overview-condo-panel">
             <div class="panel-title">
-              <h2>Condomínios</h2>
+              <h2>Selecionar condomínio</h2>
+              <button class="condo-selector-toggle" id="condoSelectorToggle" type="button" aria-label="Abrir lista de condomínios">⌄</button>
             </div>
             <div class="search-row">
               <label>
@@ -64,28 +65,25 @@
             <div class="condo-list" id="condoList"></div>
           </aside>
           <article class="metric-card">
-            <div class="metric-icon green">⬡</div>
+            <div class="metric-icon green"><strong id="activeGuardsMetric">0</strong></div>
             <div>
               <span>Vigilantes Ativos</span>
-              <strong id="activeGuardsMetric">0</strong>
               <small>Em atividade agora</small>
             </div>
             <svg class="spark" viewBox="0 0 110 32"><path d="M2 24 L12 20 L20 22 L28 12 L38 18 L48 9 L58 16 L68 8 L78 14 L88 6 L98 18 L108 12" /></svg>
           </article>
           <article class="metric-card">
-            <div class="metric-icon violet">▣</div>
+            <div class="metric-icon violet"><strong id="finishedRoutesMetric">0</strong></div>
             <div>
               <span>Rotas Concluídas Hoje</span>
-              <strong id="finishedRoutesMetric">0</strong>
               <small>Até o momento</small>
             </div>
             <svg class="spark" viewBox="0 0 110 32"><path d="M2 22 L14 18 L26 20 L38 16 L50 18 L62 13 L74 15 L86 9 L98 16 L108 10" /></svg>
           </article>
           <article class="metric-card">
-            <div class="metric-icon red">△</div>
+            <div class="metric-icon red"><strong id="openOccurrencesMetric">0</strong></div>
             <div>
               <span>Ocorrências Abertas</span>
-              <strong id="openOccurrencesMetric">0</strong>
               <small>Requer atenção</small>
             </div>
             <svg class="spark red-line" viewBox="0 0 110 32"><path d="M2 20 L12 18 L22 22 L32 13 L42 17 L52 12 L62 16 L72 9 L82 18 L92 14 L108 19" /></svg>
@@ -358,6 +356,6 @@
       </main>
     </div>
 
-    <script src="painel.js?v=31"></script>
+    <script src="painel.js?v=34"></script>
   </body>
 </html>
