@@ -924,7 +924,7 @@
 
     async function addDeviceToCurrentCondo() {
       const condo = activeCondo();
-      if (!condo) return;
+      if (!condo || !deviceName || !deviceCode) return;
       const device = normalizeDevice({
         name: deviceName.value.trim() || "Dispositivo sem nome",
         code: deviceCode.value.trim() || generateGuardCode(),
@@ -947,6 +947,7 @@
     }
 
     function clearDeviceFields() {
+      if (!deviceName || !deviceCode || !deviceType || !deviceStatus || !deviceGuard || !deviceBattery || !deviceLastSync || !deviceActive) return;
       deviceName.value = "";
       deviceCode.value = generateGuardCode();
       deviceType.value = "Ronda";
@@ -1737,29 +1738,33 @@
         overviewCondoPanel?.classList.remove("open");
       }
     });
-    document.getElementById("newCondoButton").addEventListener("click", clearForm);
-    document.getElementById("resetFormButton").addEventListener("click", clearForm);
-    document.getElementById("newGuardButton").addEventListener("click", clearGuardForm);
-    document.getElementById("resetGuardFormButton").addEventListener("click", clearGuardForm);
-    condoForm.addEventListener("submit", saveForm);
-    guardForm.addEventListener("submit", saveGuardForm);
-    deleteCondoButton.addEventListener("click", deleteSelectedCondo);
-    deleteGuardButton.addEventListener("click", deleteSelectedGuard);
-    adminSearch.addEventListener("input", renderAdminCondos);
-    guardSearch.addEventListener("input", renderGuards);
+    function on(element, eventName, handler) {
+      element?.addEventListener(eventName, handler);
+    }
+
+    on(document.getElementById("newCondoButton"), "click", clearForm);
+    on(document.getElementById("resetFormButton"), "click", clearForm);
+    on(document.getElementById("newGuardButton"), "click", clearGuardForm);
+    on(document.getElementById("resetGuardFormButton"), "click", clearGuardForm);
+    on(condoForm, "submit", saveForm);
+    on(guardForm, "submit", saveGuardForm);
+    on(deleteCondoButton, "click", deleteSelectedCondo);
+    on(deleteGuardButton, "click", deleteSelectedGuard);
+    on(adminSearch, "input", renderAdminCondos);
+    on(guardSearch, "input", renderGuards);
     statusFilter?.addEventListener("change", renderAdminCondos);
-    condoImage.addEventListener("change", handleImageUpload);
-    removeImageButton.addEventListener("click", () => {
+    on(condoImage, "change", handleImageUpload);
+    on(removeImageButton, "click", () => {
       currentImage = "";
       condoImage.value = "";
       renderImagePreview();
     });
-    closeEditorButton.addEventListener("click", closeCondoEditor);
-    closeGuardEditorButton.addEventListener("click", closeGuardEditor);
-    condoEditorOverlay.addEventListener("click", (event) => {
+    on(closeEditorButton, "click", closeCondoEditor);
+    on(closeGuardEditorButton, "click", closeGuardEditor);
+    on(condoEditorOverlay, "click", (event) => {
       if (event.target === condoEditorOverlay) closeCondoEditor();
     });
-    guardEditorOverlay.addEventListener("click", (event) => {
+    on(guardEditorOverlay, "click", (event) => {
       if (event.target === guardEditorOverlay) closeGuardEditor();
     });
     document.addEventListener("keydown", (event) => {
@@ -1767,22 +1772,22 @@
       if (event.key === "Escape" && guardEditorOverlay.classList.contains("open")) closeGuardEditor();
     });
     ["condoAddress", "condoCity", "condoState"].forEach((id) => {
-      document.getElementById(id).addEventListener("change", () => updateGoogleMap(null));
+      on(document.getElementById(id), "change", () => updateGoogleMap(null));
     });
-    applyGoogleAreaButton.addEventListener("click", () => updateGoogleMap(null));
-    googleAreaLat.addEventListener("change", () => updateGoogleMap(null));
-    googleAreaLng.addEventListener("change", () => updateGoogleMap(null));
-    googleMapType.addEventListener("change", () => updateGoogleMap(null));
-    googleMapZoom.addEventListener("change", () => updateGoogleMap(null));
-    googleMapsApiKey.value = localStorage.getItem(googleMapsApiKeyStorageKey) || "";
-    googleMapsApiKey.addEventListener("change", saveGoogleMapsApiKey);
-    guardCondo.addEventListener("change", () => populateGuardDeviceOptions(guardCondo.value));
-    addDeviceButton.addEventListener("click", addDeviceToCurrentCondo);
-    editRouteButton.addEventListener("click", startRouteEditing);
-    saveRouteButton.addEventListener("click", saveRoute);
-    clearRouteButton.addEventListener("click", clearRoute);
-    addCoordinatePointButton.addEventListener("click", addRoutePoint);
-    routePointList.addEventListener("click", (event) => {
+    on(applyGoogleAreaButton, "click", () => updateGoogleMap(null));
+    on(googleAreaLat, "change", () => updateGoogleMap(null));
+    on(googleAreaLng, "change", () => updateGoogleMap(null));
+    on(googleMapType, "change", () => updateGoogleMap(null));
+    on(googleMapZoom, "change", () => updateGoogleMap(null));
+    if (googleMapsApiKey) googleMapsApiKey.value = localStorage.getItem(googleMapsApiKeyStorageKey) || "";
+    on(googleMapsApiKey, "change", saveGoogleMapsApiKey);
+    on(guardCondo, "change", () => populateGuardDeviceOptions(guardCondo.value));
+    on(addDeviceButton, "click", addDeviceToCurrentCondo);
+    on(editRouteButton, "click", startRouteEditing);
+    on(saveRouteButton, "click", saveRoute);
+    on(clearRouteButton, "click", clearRoute);
+    on(addCoordinatePointButton, "click", addRoutePoint);
+    on(routePointList, "click", (event) => {
       const button = event.target.closest("[data-focus-route]");
       if (!button) return;
       const source = routeEditing ? draftRoute : activeCondo()?.patrolRouteSegments || [];
@@ -1795,7 +1800,7 @@
       });
     });
     [routePointName, routeStartLat, routeStartLng, routeEndLat, routeEndLng].forEach((input) => {
-      input.addEventListener("keydown", (event) => {
+      on(input, "keydown", (event) => {
         if (event.key === "Enter") addRoutePoint(event);
       });
     });
