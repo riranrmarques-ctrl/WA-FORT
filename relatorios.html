@@ -1,112 +1,487 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cadastro de Vigilantes</title>
 
-  <title>WA FORT | Relatórios</title>
+  <!-- MESMO CSS DO PAINEL -->
+  <link rel="stylesheet" href="painel.css?v=34" />
 
-  <link rel="stylesheet" href="vigilantes.css" />
+  <style>
+
+    .guards-layout{
+      display:grid;
+      grid-template-columns:1.1fr .8fr;
+      gap:24px;
+      margin-top:24px;
+      height:calc(100vh - 180px);
+    }
+
+    .guards-list-panel{
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+      overflow:hidden;
+    }
+
+    .guards-topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+    }
+
+    .guards-search{
+      flex:1;
+      position:relative;
+    }
+
+    .guards-search input{
+      width:100%;
+      height:52px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.08);
+      background:#081321;
+      padding:0 18px;
+      color:#fff;
+      outline:none;
+    }
+
+    .guards-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+      gap:18px;
+      overflow:auto;
+      padding-right:4px;
+    }
+
+    .guard-card{
+      background:rgba(7,17,32,.9);
+      border:1px solid rgba(80,120,255,.12);
+      border-radius:24px;
+      padding:22px;
+      cursor:pointer;
+      transition:.2s;
+    }
+
+    .guard-card:hover{
+      border-color:#2f6bff;
+      transform:translateY(-2px);
+    }
+
+    .guard-card.active{
+      border-color:#2f6bff;
+      box-shadow:0 0 0 1px rgba(47,107,255,.35);
+    }
+
+    .guard-avatar{
+      width:72px;
+      height:72px;
+      border-radius:50%;
+      background:linear-gradient(180deg,#2f6bff,#1c56e3);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:28px;
+      font-weight:700;
+      margin-bottom:18px;
+    }
+
+    .guard-card strong{
+      display:block;
+      color:#fff;
+      font-size:24px;
+      margin-bottom:8px;
+    }
+
+    .guard-card span{
+      color:#95a3bd;
+      display:block;
+      margin-bottom:18px;
+    }
+
+    .guard-status{
+      width:max-content;
+      background:rgba(22,163,74,.12);
+      color:#22c55e;
+      padding:8px 14px;
+      border-radius:999px;
+      font-size:13px;
+    }
+
+    .guard-editor{
+      padding:28px;
+      overflow:auto;
+    }
+
+    .guard-profile{
+      display:flex;
+      align-items:center;
+      gap:18px;
+      margin-bottom:28px;
+    }
+
+    .guard-profile .guard-avatar{
+      width:90px;
+      height:90px;
+      margin-bottom:0;
+      font-size:34px;
+    }
+
+    .guard-profile strong{
+      font-size:32px;
+      color:#fff;
+      display:block;
+      margin-bottom:10px;
+    }
+
+    .form-block{
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+    }
+
+    .form-block label{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      color:#b7c2d9;
+      font-size:14px;
+    }
+
+    .form-block input,
+    .form-block select{
+      height:56px;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.08);
+      background:#081321;
+      color:#fff;
+      padding:0 16px;
+      outline:none;
+    }
+
+    .sync-box{
+      margin-top:28px;
+      background:#081321;
+      border:1px solid rgba(255,255,255,.05);
+      border-radius:22px;
+      padding:24px;
+    }
+
+    .sync-button{
+      width:100%;
+      height:56px;
+      border-radius:16px;
+      border:1px solid #2f6bff;
+      background:rgba(47,107,255,.08);
+      color:#5da0ff;
+      font-size:16px;
+      margin-bottom:18px;
+    }
+
+    .editor-actions{
+      display:flex;
+      gap:14px;
+      margin-top:32px;
+    }
+
+    .editor-actions button{
+      flex:1;
+      height:56px;
+      border:none;
+      border-radius:16px;
+      cursor:pointer;
+      font-size:15px;
+      font-weight:600;
+    }
+
+    .danger-btn{
+      background:#271313;
+      color:#ff7b7b;
+    }
+
+    .save-btn{
+      background:#2f6bff;
+      color:#fff;
+    }
+
+    @media(max-width:1200px){
+
+      .guards-layout{
+        grid-template-columns:1fr;
+      }
+
+    }
+
+  </style>
 </head>
 
 <body>
+
+<div class="app-shell">
+
+  <!-- SIDEBAR ORIGINAL -->
   <aside class="sidebar">
+
     <div class="brand">
-      <div class="brand-icon">WA</div>
+      <div class="brand-shield">
+        <img src="logo.png" alt="Safeway" />
+      </div>
+
       <div>
-        <strong>WA FORT</strong>
+        <strong>SAFEWAY</strong>
         <span>MONITORAMENTO</span>
       </div>
     </div>
 
-    <nav class="menu">
-      <a href="painel.html">⌂ Visão Geral</a>
-      <a href="condominios.html">▦ Condomínios</a>
-      <a href="vigilantes.html">♙ Vigilantes</a>
-      <a href="ocorrencias.html">△ Ocorrências</a>
-      <a href="relatorios.html" class="ativo">▤ Relatórios</a>
-      <a href="alertas.html">○ Alertas</a>
-      <a href="configuracoes.html">⚙ Configurações</a>
+    <nav class="nav-list" aria-label="Navegação principal">
+
+      <button class="nav-item"
+        onclick="window.location.href='painel.html'">
+        <span>⌂</span>Visão Geral
+      </button>
+
+      <button class="nav-item"
+        onclick="window.location.href='condominios.html'">
+        <span>▥</span>Condomínios
+      </button>
+
+      <button class="nav-item active"
+        onclick="window.location.href='vigilantes.html'">
+        <span>♙</span>Vigilantes
+      </button>
+
+      <button class="nav-item"
+        onclick="window.location.href='ocorrencias.html'">
+        <span>△</span>Ocorrências
+      </button>
+
+      <button class="nav-item"
+        onclick="window.location.href='relatorios.html'">
+        <span>▤</span>Relatórios
+      </button>
+
+      <button class="nav-item"
+        onclick="window.location.href='alertas.html'">
+        <span>◌</span>Alertas
+      </button>
+
+      <button class="nav-item"
+        onclick="window.location.href='configuracoes.html'">
+        <span>⚙</span>Configurações
+      </button>
+
     </nav>
+
   </aside>
 
-  <main class="main">
-    <header class="topo">
+  <!-- CONTEÚDO -->
+  <main class="dashboard">
+
+    <header class="topbar">
+
       <div>
-        <h1>Relatórios</h1>
-        <p>Consulte as rotas concluídas por dia, semana ou mês.</p>
+        <div class="headline-row">
+          <h1>Cadastro de Vigilantes</h1>
+        </div>
+
+        <p>
+          Gerencie vigilantes, rotas e sincronização por telefone.
+        </p>
       </div>
+
+      <div class="top-status">
+        <div>
+          <span>Sistema</span>
+          <strong>ONLINE</strong>
+          <small><i></i>Sincronização ativa</small>
+        </div>
+      </div>
+
     </header>
 
-    <section class="cards-resumo">
-      <div class="card-resumo">
-        <span>Rotas Concluídas</span>
-        <strong>0</strong>
-      </div>
+    <section class="guards-layout">
 
-      <div class="card-resumo">
-        <span>Tempo Médio</span>
-        <strong>0min</strong>
-      </div>
+      <!-- ESQUERDA -->
+      <section class="panel guards-list-panel">
 
-      <div class="card-resumo">
-        <span>Vigilantes Ativos</span>
-        <strong>0</strong>
-      </div>
+        <div class="guards-topbar">
 
-      <div class="card-resumo">
-        <span>Ocorrências no Período</span>
-        <strong>0</strong>
-      </div>
-    </section>
+          <div class="guards-search">
+            <input type="text" placeholder="Buscar por nome ou telefone...">
+          </div>
 
-    <section class="area-vigilantes">
-      <div class="barra-lista">
-        <h2>Consulta de rotas concluídas</h2>
-      </div>
-
-      <div style="padding: 20px; border-bottom: 1px solid #173552;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 14px; align-items: end;">
-          
-          <label style="color:#91a7bd; font-size:14px;">
-            Tipo de filtro
-            <select style="width:100%; margin-top:8px; padding:14px; border-radius:10px; border:1px solid #25415f; background:#071421; color:white;">
-              <option value="dia">Dia</option>
-              <option value="semana">Semana</option>
-              <option value="mes">Mês</option>
-            </select>
-          </label>
-
-          <label style="color:#91a7bd; font-size:14px;">
-            Data inicial
-            <input type="date" style="width:100%; margin-top:8px; padding:14px; border-radius:10px; border:1px solid #25415f; background:#071421; color:white;" />
-          </label>
-
-          <label style="color:#91a7bd; font-size:14px;">
-            Data final
-            <input type="date" style="width:100%; margin-top:8px; padding:14px; border-radius:10px; border:1px solid #25415f; background:#071421; color:white;" />
-          </label>
-
-          <button class="btn-primary" type="button">
-            Consultar
+          <button class="primary-button">
+            + Novo Vigilante
           </button>
-        </div>
-      </div>
 
-      <div style="padding: 20px;">
-        <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr; gap: 12px; color:#91a7bd; font-size:14px; padding: 0 0 14px; border-bottom:1px solid #173552;">
-          <strong>Rota</strong>
-          <strong>Vigilante</strong>
-          <strong>Condomínio</strong>
-          <strong>Data</strong>
-          <strong>Tempo</strong>
         </div>
 
-        <div style="padding: 40px; text-align:center; color:#91a7bd; border:1px dashed #25415f; border-radius:14px; margin-top:20px;">
-          Nenhuma rota concluída encontrada nesse período.
+        <div class="guards-grid">
+
+          <article class="guard-card active">
+
+            <div class="guard-avatar">
+              JS
+            </div>
+
+            <strong>João Silva</strong>
+
+            <span>(47) 99123-4567</span>
+
+            <div class="guard-status">
+              ● Ativo
+            </div>
+
+          </article>
+
+          <article class="guard-card">
+
+            <div class="guard-avatar">
+              MC
+            </div>
+
+            <strong>Maria Costa</strong>
+
+            <span>(47) 99234-5678</span>
+
+            <div class="guard-status">
+              ● Ativo
+            </div>
+
+          </article>
+
+          <article class="guard-card">
+
+            <div class="guard-avatar">
+              RP
+            </div>
+
+            <strong>Rafael Pereira</strong>
+
+            <span>(47) 99345-6789</span>
+
+            <div class="guard-status">
+              ● Ativo
+            </div>
+
+          </article>
+
+          <article class="guard-card">
+
+            <div class="guard-avatar">
+              LC
+            </div>
+
+            <strong>Lucas Carvalho</strong>
+
+            <span>(47) 99567-8901</span>
+
+            <div class="guard-status">
+              ● Ativo
+            </div>
+
+          </article>
+
         </div>
-      </div>
+
+      </section>
+
+      <!-- DIREITA -->
+      <aside class="panel guard-editor">
+
+        <div class="guard-profile">
+
+          <div class="guard-avatar">
+            JS
+          </div>
+
+          <div>
+
+            <strong>
+              João Silva
+            </strong>
+
+            <div class="guard-status">
+              ● Ativo
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="form-block">
+
+          <label>
+            Nome
+            <input type="text" value="João Silva">
+          </label>
+
+          <label>
+            Telefone
+            <input type="text" value="(47) 99123-4567">
+          </label>
+
+          <label>
+            Rota do Vigilante
+
+            <select>
+
+              <option>
+                Rota 1 - Moradas da Praia
+              </option>
+
+              <option>
+                Rota 2 - Condomínio Atlântico
+              </option>
+
+            </select>
+
+          </label>
+
+        </div>
+
+        <div class="sync-box">
+
+          <h3 style="margin-bottom:18px;">
+            Sincronização
+          </h3>
+
+          <button class="sync-button">
+            Por Celular
+          </button>
+
+          <div class="form-block">
+
+            <label>
+              Telefone para sincronização
+              <input type="text" value="(47) 99123-4567">
+            </label>
+
+          </div>
+
+        </div>
+
+        <div class="editor-actions">
+
+          <button class="danger-btn">
+            Excluir
+          </button>
+
+          <button class="save-btn">
+            Salvar Alterações
+          </button>
+
+        </div>
+
+      </aside>
+
     </section>
+
   </main>
+
+</div>
+
 </body>
 </html>
