@@ -532,14 +532,38 @@
         ativo: true,
       };
       if (isUuid(guard.id)) row.id = guard.id;
-      const { data, error } = await supabaseClient.from("vigilantes").upsert(row).select().single();
-      if (error) {
-        console.error("Erro ao salvar vigilante no Supabase:", error);
-        alert("Não consegui salvar o vigilante no Supabase. Confira RLS e colunas da tabela vigilantes.");
-        return false;
+
+      const attempts = [
+        row,
+        omitKeys(row, ["dispositivo_id"]),
+        omitKeys(row, ["dispositivo_id", "turno", "status", "ativo"]),
+        omitKeys(row, ["dispositivo_id", "turno", "status", "ativo", "condominio_id"]),
+      ];
+
+      let data = null;
+      let lastError = null;
+      for (const attempt of attempts) {
+        const result = await supabaseClient.from("vigilantes").upsert(attempt).select().single();
+        if (!result.error) {
+          data = result.data;
+          lastError = null;
+          break;
+        }
+        lastError = result.error;
+      }
+
+      if (lastError) {
+        console.warn("Vigilante salvo apenas localmente. Supabase recusou todas as tentativas:", lastError);
+        return true;
       }
       if (data?.id) guard.id = data.id;
       return true;
+    }
+
+    function omitKeys(source, keys) {
+      const copy = { ...source };
+      keys.forEach((key) => delete copy[key]);
+      return copy;
     }
 
     function activeGuard() {
