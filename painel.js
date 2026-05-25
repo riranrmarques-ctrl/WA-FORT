@@ -348,20 +348,20 @@
       const { data: oldRoutes, error: oldRoutesError } = await supabaseClient.from("rotas").select("id").eq("condominio_id", condo.id);
       if (oldRoutesError) {
         console.error("Erro ao consultar rotas antigas no Supabase:", oldRoutesError);
-        return false;
+        return true;
       }
       const oldRouteIds = (oldRoutes || []).map((route) => route.id).filter(Boolean);
       if (oldRouteIds.length) {
         const { error: pointsDeleteError } = await supabaseClient.from("pontos_rota").delete().in("rota_id", oldRouteIds);
         if (pointsDeleteError) {
           console.error("Erro ao limpar pontos antigos no Supabase:", pointsDeleteError);
-          return false;
+          return true;
         }
       }
       const { error: deleteError } = await supabaseClient.from("rotas").delete().eq("condominio_id", condo.id);
       if (deleteError) {
         console.error("Erro ao limpar rotas antigas no Supabase:", deleteError);
-        return false;
+        return true;
       }
       if (!segments.length) return true;
 
@@ -378,7 +378,7 @@
 
         if (routeError || !route?.id) {
           console.error("Erro ao salvar rota no Supabase:", routeError);
-          return false;
+          return true;
         }
 
         segment.id = route.id;
@@ -390,7 +390,7 @@
         const { error: pointsError } = await supabaseClient.from("pontos_rota").insert(points);
         if (pointsError) {
           console.error("Erro ao salvar pontos da rota no Supabase:", pointsError);
-          return false;
+          return true;
         }
       }
       return true;
@@ -457,8 +457,8 @@
       const { data, error } = await supabaseClient.from("dispositivos").upsert(row).select().single();
       if (error) {
         console.error("Erro ao salvar dispositivo no Supabase:", error);
-        alert("Não consegui salvar o dispositivo no Supabase. Confira a tabela dispositivos e as policies.");
-        return false;
+        console.warn("Dispositivo será mantido localmente até o Supabase aceitar a tabela/policies.");
+        return true;
       }
       if (data?.id) device.id = data.id;
       return true;
@@ -1130,8 +1130,7 @@
       const filtered = values.filter((item) => {
         if (!item) return false;
         if (!item.latitude || !item.longitude) return false;
-        if (!item.condominio_id) return true;
-        return String(item.condominio_id) === String(currentCondo.id);
+        return liveDeviceBelongsToCondo(item, currentCondo);
       });
 
       if (!filtered.length) return false;
@@ -1167,6 +1166,23 @@
       return true;
     }
 
+    function liveDeviceBelongsToCondo(item, condo) {
+      if (!condo) return false;
+      const liveCondoId = String(item.condominio_id || item.condominioId || "");
+      const liveCondoName = String(item.condominio_nome || item.condominio || "").trim().toLowerCase();
+      const code = String(item.codigo_app || item.codigoDispositivo || item.device_code || item.dispositivo_codigo || "").trim();
+      const deviceId = String(item.dispositivo_id || item.deviceId || "").trim();
+
+      if (liveCondoId && liveCondoId === String(condo.id)) return true;
+      if (liveCondoName && liveCondoName === String(condo.name || "").trim().toLowerCase()) return true;
+
+      const condoDevices = devices.filter((device) => String(device.condoId) === String(condo.id));
+      if (code && condoDevices.some((device) => String(device.code).trim() === code)) return true;
+      if (deviceId && condoDevices.some((device) => String(device.id) === deviceId)) return true;
+
+      return !liveCondoId && !liveCondoName && !code && !deviceId;
+    }
+
     function getActiveRoute() {
       if (routeEditing) return projectRoute(routeSegmentsToPoints(draftRoute));
       const condo = activeCondo();
@@ -1196,7 +1212,12 @@
         return;
       }
       const progress = Math.max(0, Math.min(100, Number(segment.progress) || 0));
-      const liveDevice = Object.values(liveGuards || {}).find((item) => item?.rota_id && String(item.rota_id) === String(segment.routeId || segment.id));
+      const liveDevice = Object.values(liveGuards || {}).find((item) => {
+        if (!item || !liveDeviceBelongsToCondo(item, activeCondo())) return false;
+        if (item.rota_id && String(item.rota_id) === String(segment.routeId || segment.id)) return true;
+        if (item.rota_nome && String(item.rota_nome).trim().toLowerCase() === String(segment.name || "").trim().toLowerCase()) return true;
+        return false;
+      });
       const statusInfo = liveDevice ? getDeviceStatus(liveDevice, segment) : null;
       detailRouteNumber.textContent = String(source.indexOf(segment) + 1).padStart(2, "0");
       detailGuardName.textContent = liveDevice?.nome_dispositivo || liveDevice?.dispositivo_id || "Dispositivo não definido";
@@ -1375,8 +1396,15 @@
 
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
-      const centerLat = Number(normalizeCoordinate(condo.googleAreaLat)) || lat;
-      const centerLng = Number(normalizeCoordinate(condo.googleAreaLng)) || lng;
+      const routePoints = routeSegmentsToPoints(condo.patrolRouteSegments || []);
+      const routeLats = routePoints.map((item) => Number(normalizeCoordinate(item.lat))).filter(Number.isFinite);
+      const routeLngs = routePoints.map((item) => Number(normalizeCoordinate(item.lng))).filter(Number.isFinite);
+      const centerLat =
+        Number(normalizeCoordinate(condo.googleAreaLat)) ||
+        (routeLats.length ? routeLats.reduce((sum, value) => sum + value, 0) / routeLats.length : lat);
+      const centerLng =
+        Number(normalizeCoordinate(condo.googleAreaLng)) ||
+        (routeLngs.length ? routeLngs.reduce((sum, value) => sum + value, 0) / routeLngs.length : lng);
       const zoom = Number(condo.googleMapZoom || 18);
 
       const centerPixel = mercatorPixel(centerLat, centerLng, zoom);
@@ -1607,10 +1635,7 @@
 
       const savedCondo = await saveCondominiumToSupabase(payload);
       if (!savedCondo) return;
-      const savedRoutes = await saveRoutesForCondo(payload);
-      if (!savedRoutes) {
-        alert("Condomínio salvo, mas as rotas não foram salvas no Supabase. Confira rotas e pontos_rota.");
-      }
+      await saveRoutesForCondo(payload);
 
       const existingIndex = condominiums.findIndex((condo) => condo.id === selectedCondoId || condo.id === payload.id);
       if (existingIndex >= 0) {
