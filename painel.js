@@ -99,6 +99,7 @@
     const imagePreview = document.getElementById("imagePreview");
     const removeImageButton = document.getElementById("removeImageButton");
     const googleMapFrame = document.getElementById("googleMapFrame");
+    const condoRoutePreview = document.getElementById("condoRoutePreview");
     const googleMapLink = document.getElementById("googleMapLink");
     const googleAreaLat = document.getElementById("googleAreaLat");
     const googleAreaLng = document.getElementById("googleAreaLng");
@@ -263,7 +264,7 @@
     function normalizeRouteSegments(segments, legacyPoints) {
       if (Array.isArray(segments) && segments.length) {
         return segments
-          .map((segment, index) => ({
+          .map((segment, index) => normalizeRouteCoordinateSet({
             id: segment.id || segment.routeId || "",
             routeId: segment.routeId || segment.id || "",
             name: segment.name || `Rota ${index + 1}`,
@@ -279,7 +280,7 @@
       if (!Array.isArray(legacyPoints) || legacyPoints.length < 2) return [];
       return legacyPoints.slice(0, -1).map((point, index) => {
         const next = legacyPoints[index + 1];
-        return {
+        return normalizeRouteCoordinateSet({
           id: point.id || "",
           routeId: point.routeId || point.id || "",
           name: `Rota ${index + 1}`,
@@ -288,8 +289,35 @@
           startLng: normalizeCoordinate(point.lng),
           endLat: normalizeCoordinate(next.lat),
           endLng: normalizeCoordinate(next.lng),
-        };
+        });
       });
+    }
+
+    function normalizeRouteCoordinateSet(segment) {
+      const startLat = normalizeCoordinate(segment.startLat);
+      const startLng = normalizeCoordinate(segment.startLng);
+      const endLat = normalizeCoordinate(segment.endLat);
+      const endLng = normalizeCoordinate(segment.endLng);
+
+      if (looksLikeLat(startLat) && looksLikeLat(startLng) && looksLikeLng(endLat) && looksLikeLng(endLng)) {
+        return { ...segment, startLat, startLng: endLat, endLat: startLng, endLng };
+      }
+
+      if (looksLikeLng(startLat) && looksLikeLat(startLng) && looksLikeLng(endLat) && looksLikeLat(endLng)) {
+        return { ...segment, startLat: startLng, startLng: startLat, endLat: endLng, endLng: endLat };
+      }
+
+      return { ...segment, startLat, startLng, endLat, endLng };
+    }
+
+    function looksLikeLat(value) {
+      const number = Number(normalizeCoordinate(value));
+      return Number.isFinite(number) && number >= -35 && number <= 8;
+    }
+
+    function looksLikeLng(value) {
+      const number = Number(normalizeCoordinate(value));
+      return Number.isFinite(number) && number >= -75 && number <= -30;
     }
 
     function routeSegmentsToPoints(segments) {
@@ -1275,11 +1303,7 @@
       condo.patrolRouteSegments = normalizeRouteSegments(draftRoute, []);
       condo.patrolRouteGeo = routeSegmentsToPoints(condo.patrolRouteSegments);
       condo.patrolRoute = projectRoute(condo.patrolRouteGeo).map((point) => [Math.round(point.x), Math.round(point.y)]);
-      const saved = await saveRoutesForCondo(condo);
-      if (!saved) {
-        alert("Não consegui salvar as rotas no Supabase. Confira as tabelas rotas e pontos_rota.");
-        return;
-      }
+      await saveRoutesForCondo(condo);
       routeEditing = false;
       mapCanvas.classList.remove("editing");
       editRouteButton.classList.remove("active");
@@ -1313,7 +1337,7 @@
         routeStartLat.focus();
         return;
       }
-      draftRoute.push({
+      const normalizedSegment = normalizeRouteCoordinateSet({
         name: routePointName.value.trim() || `Rota ${draftRoute.length + 1}`,
         progress: 0,
         startLat,
@@ -1321,7 +1345,8 @@
         endLat,
         endLng,
       });
-      focusGoogleMapOnPoint({ lat: startLat, lng: startLng });
+      draftRoute.push(normalizedSegment);
+      focusGoogleMapOnPoint({ lat: normalizedSegment.startLat, lng: normalizedSegment.startLng });
       routePointName.value = "";
       routeStartLat.value = "";
       routeStartLng.value = "";
@@ -1339,6 +1364,7 @@
         empty.className = "route-point-item";
         empty.textContent = "Nenhuma rota adicionada";
         routePointList.appendChild(empty);
+        renderCondoRoutePreview();
         return;
       }
       source.forEach((segment, index) => {
@@ -1352,6 +1378,83 @@
         `;
         routePointList.appendChild(item);
       });
+      renderCondoRoutePreview();
+    }
+
+    function renderCondoRoutePreview() {
+      if (!condoRoutePreview) return;
+      condoRoutePreview.replaceChildren();
+      const source = routeEditing ? draftRoute : activeCondo()?.patrolRouteSegments || [];
+      if (!source.length) return;
+
+      source.forEach((rawSegment, index) => {
+        const segment = normalizeRouteCoordinateSet(rawSegment);
+        const start = projectEditorRoutePoint({ lat: segment.startLat, lng: segment.startLng });
+        const end = projectEditorRoutePoint({ lat: segment.endLat, lng: segment.endLng });
+        if (!start || !end) return;
+
+        const line = svg("line", {
+          class: "condo-route-preview-line",
+          x1: start.x,
+          y1: start.y,
+          x2: end.x,
+          y2: end.y,
+        });
+        condoRoutePreview.appendChild(line);
+
+        [start, end].forEach((point) => {
+          condoRoutePreview.appendChild(svg("circle", {
+            class: "condo-route-preview-point",
+            cx: point.x,
+            cy: point.y,
+            r: 8,
+          }));
+        });
+
+        const midX = start.x + (end.x - start.x) * 0.5;
+        const midY = start.y + (end.y - start.y) * 0.5;
+        const label = svg("text", {
+          class: "condo-route-preview-label",
+          x: midX + 12,
+          y: midY - 8,
+        });
+        label.textContent = segment.name || `Rota ${index + 1}`;
+        condoRoutePreview.appendChild(label);
+      });
+    }
+
+    function projectEditorRoutePoint(point) {
+      const lat = Number(normalizeCoordinate(point?.lat));
+      const lng = Number(normalizeCoordinate(point?.lng));
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+      const source = routeEditing ? draftRoute : activeCondo()?.patrolRouteSegments || [];
+      const routePoints = routeSegmentsToPoints(source);
+      const routeLats = routePoints.map((item) => Number(normalizeCoordinate(item.lat))).filter(Number.isFinite);
+      const routeLngs = routePoints.map((item) => Number(normalizeCoordinate(item.lng))).filter(Number.isFinite);
+      const centerLat =
+        Number(normalizeCoordinate(googleAreaLat?.value)) ||
+        Number(normalizeCoordinate(activeCondo()?.googleAreaLat)) ||
+        (routeLats.length ? routeLats.reduce((sum, value) => sum + value, 0) / routeLats.length : lat);
+      const centerLng =
+        Number(normalizeCoordinate(googleAreaLng?.value)) ||
+        Number(normalizeCoordinate(activeCondo()?.googleAreaLng)) ||
+        (routeLngs.length ? routeLngs.reduce((sum, value) => sum + value, 0) / routeLngs.length : lng);
+      const zoom = Number(googleMapZoom?.value || activeCondo()?.googleMapZoom || 18);
+      const centerPixel = mercatorPixel(centerLat, centerLng, zoom);
+      const pixel = mercatorPixel(lat, lng, zoom);
+      const viewWidth = 1000;
+      const viewHeight = 520;
+      const previewRect = condoRoutePreview.getBoundingClientRect();
+      const previewWidth = previewRect.width || viewWidth;
+      const previewHeight = previewRect.height || viewHeight;
+      const screenX = previewWidth / 2 + (pixel.x - centerPixel.x);
+      const screenY = previewHeight / 2 + (pixel.y - centerPixel.y);
+
+      return {
+        x: Math.max(0, Math.min(viewWidth, (screenX / previewWidth) * viewWidth)),
+        y: Math.max(0, Math.min(viewHeight, (screenY / previewHeight) * viewHeight)),
+      };
     }
 
     function projectRoute(routeGeo) {
@@ -1701,6 +1804,7 @@
       if (!hasCoordinates && !addressQuery) {
         googleMapFrame.removeAttribute("src");
         if (googleMapLink) googleMapLink.href = "https://www.google.com/maps";
+        renderCondoRoutePreview();
         return;
       }
       const query = hasCoordinates ? `${lat},${lng}` : addressQuery;
@@ -1711,6 +1815,7 @@
           ? `https://www.google.com/maps/@${lat},${lng},${zoom}z/data=!3m1!1e3`
           : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
       }
+      renderCondoRoutePreview();
     }
 
     function focusGoogleMapOnPoint(point) {
@@ -1722,6 +1827,7 @@
       const encoded = encodeURIComponent(`${lat},${lng}`);
       googleMapFrame.src = `https://www.google.com/maps?q=${encoded}&t=${mapType}&z=${zoom}&output=embed`;
       if (googleMapLink) googleMapLink.href = `https://www.google.com/maps/@${lat},${lng},${zoom}z/data=!3m1!1e3`;
+      renderCondoRoutePreview();
     }
 
     function normalizeCoordinate(value) {
