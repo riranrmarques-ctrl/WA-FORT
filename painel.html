@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Safeway Monitoramento</title>
-    <link rel="stylesheet" href="painel.css?v=42" />
+    <link rel="stylesheet" href="painel.css?v=43" />
   </head>
   <body>
     <div class="app-shell">
@@ -295,7 +295,10 @@
                     <small class="api-key-note" id="googleMapsApiStatus">Sem chave: o painel usa prévia visual aproximada.</small>
                     <button class="ghost-button" type="button" id="applyGoogleAreaButton">Aplicar coordenadas</button>
                   </div>
-                  <iframe id="googleMapFrame" title="Mapa Google do condomínio" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allow="fullscreen" allowfullscreen></iframe>
+                  <div class="condo-map-preview">
+                    <iframe id="googleMapFrame" title="Mapa Google do condomínio" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allow="fullscreen" allowfullscreen></iframe>
+                    <svg id="condoRoutePreview" viewBox="0 0 1000 520" aria-hidden="true"></svg>
+                  </div>
                 </div>
 
                 <div class="device-setup-block">
@@ -489,6 +492,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="painel.js?v=42"></script>
+    <script src="painel.js?v=43"></script>
   </body>
 </html>
