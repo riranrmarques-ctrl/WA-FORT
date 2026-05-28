@@ -601,6 +601,78 @@ h1 {
   max-height: none;
 }
 
+#condoEditorOverlay {
+  padding: 26px 18px;
+}
+
+#condoEditorOverlay .condo-editor {
+  width: min(1180px, calc(100vw - 36px));
+  background:
+    linear-gradient(180deg, rgba(14, 28, 43, 0.95), rgba(7, 17, 28, 0.97)),
+    radial-gradient(circle at 18% 0, rgba(18, 104, 255, 0.12), transparent 34%);
+}
+
+#condoForm {
+  display: grid;
+  gap: 12px;
+}
+
+#condoForm .editor-title {
+  margin-bottom: 2px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(144, 164, 184, 0.12);
+}
+
+#condoForm .editor-title h2 {
+  font-size: 24px;
+}
+
+#condoForm .form-grid {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 10px;
+}
+
+#condoForm .form-grid label {
+  gap: 5px;
+  font-size: 12px;
+}
+
+#condoForm .form-grid input,
+#condoForm .form-grid select,
+#condoForm .form-grid textarea {
+  min-height: 38px;
+  padding: 0 11px;
+}
+
+#condoForm .form-grid textarea {
+  min-height: 62px;
+  padding-block: 10px;
+}
+
+#condoForm .wide-field {
+  grid-column: auto;
+}
+
+#condoForm .form-grid label:nth-child(1) {
+  grid-column: span 3;
+}
+
+#condoForm .form-grid label:nth-child(2) {
+  grid-column: span 5;
+}
+
+#condoForm .form-grid label:nth-child(3) {
+  grid-column: span 3;
+}
+
+#condoForm .form-grid label:nth-child(4) {
+  grid-column: span 1;
+}
+
+#condoForm .form-grid label:nth-child(5) {
+  grid-column: 1 / -1;
+}
+
 .editor-actions {
   display: flex;
   gap: 8px;
@@ -885,6 +957,176 @@ h1 {
   margin: 8px 0 12px;
   color: var(--muted);
   font-size: 12px;
+}
+
+#condoForm .media-grid,
+#condoForm .google-map-block,
+#condoForm .device-setup-block,
+#condoForm .route-setup-block {
+  margin-top: 0;
+  padding: 12px;
+  background:
+    linear-gradient(180deg, rgba(10, 24, 38, 0.78), rgba(6, 17, 29, 0.88)),
+    radial-gradient(circle at 0 0, rgba(18, 104, 255, 0.08), transparent 42%);
+}
+
+#condoForm .media-grid {
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
+#condoForm .media-grid h3,
+#condoForm .google-map-block h3,
+#condoForm .route-setup-heading h3 {
+  margin-bottom: 5px;
+}
+
+#condoForm .media-grid p,
+#condoForm .google-map-block p,
+#condoForm .route-setup-heading p {
+  margin-bottom: 0;
+  font-size: 13px;
+  line-height: 1.28;
+}
+
+#condoForm .upload-box {
+  min-height: 38px;
+  margin: 10px 0 8px;
+}
+
+#condoForm .image-preview,
+#condoForm .image-preview img {
+  min-height: 0;
+  height: 180px;
+}
+
+#condoForm .google-map-block {
+  grid-template-columns: 250px minmax(0, 1fr);
+}
+
+#condoForm .condo-map-preview,
+#condoForm .google-map-block iframe,
+#condoForm .condo-map-preview iframe {
+  min-height: 260px;
+}
+
+#condoForm .coordinate-grid,
+#condoForm .map-options {
+  gap: 8px;
+}
+
+#condoForm .coordinate-grid {
+  margin-top: 10px;
+}
+
+#condoForm .coordinate-grid label,
+#condoForm .map-options label,
+#condoForm .api-key-field {
+  gap: 5px;
+  font-size: 12px;
+}
+
+#condoForm .coordinate-grid input,
+#condoForm .map-options select,
+#condoForm .api-key-field input {
+  min-height: 38px;
+}
+
+#condoForm .api-key-field {
+  margin-top: 8px;
+}
+
+#condoForm .api-key-note {
+  margin: 6px 0 8px;
+}
+
+#condoForm .setup-grid {
+  display: grid;
+  grid-template-columns: minmax(330px, 0.9fr) minmax(460px, 1.1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+#condoForm .device-setup-block,
+#condoForm .route-setup-block {
+  min-height: 100%;
+}
+
+#condoForm .route-setup-heading {
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+#condoForm .setup-grid .route-setup-heading {
+  grid-template-columns: 1fr;
+}
+
+#condoForm .setup-grid .route-actions {
+  width: fit-content;
+}
+
+#condoForm .device-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+#condoForm .device-fields label,
+#condoForm .route-coordinate-panel label {
+  gap: 5px;
+}
+
+#condoForm .device-fields input,
+#condoForm .device-fields select,
+#condoForm .route-coordinate-panel input {
+  min-height: 38px;
+}
+
+#condoForm .device-list,
+#condoForm .route-point-list {
+  max-height: 132px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+#condoForm .device-item {
+  grid-template-columns: 1fr;
+  gap: 4px;
+  padding: 10px;
+}
+
+#condoForm .route-coordinate-panel {
+  gap: 10px;
+  padding-top: 10px;
+}
+
+#condoForm .route-coordinate-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+#condoForm .route-coordinate-fields label:nth-child(1),
+#condoForm .route-coordinate-fields label:nth-child(2) {
+  grid-column: auto;
+}
+
+#condoForm .route-coordinate-fields label:nth-child(1) {
+  grid-column: 1 / -1;
+}
+
+#condoForm .route-coordinate-panel button {
+  min-height: 40px;
+}
+
+#condoForm .route-point-item {
+  min-height: 38px;
+}
+
+#condoForm .form-actions {
+  position: sticky;
+  bottom: -16px;
+  z-index: 4;
+  margin: 0 -16px -16px;
+  padding: 12px 16px 16px;
+  background: linear-gradient(180deg, rgba(7, 17, 28, 0), rgba(7, 17, 28, 0.96) 30%, rgba(7, 17, 28, 0.98));
 }
 
 .primary-button,
@@ -2217,8 +2459,22 @@ h1 {
   .admin-tools,
   .form-grid,
   .media-grid,
-  .google-map-block {
+  .google-map-block,
+  #condoForm .form-grid,
+  #condoForm .media-grid,
+  #condoForm .google-map-block,
+  #condoForm .setup-grid,
+  #condoForm .device-fields,
+  #condoForm .route-coordinate-fields {
     grid-template-columns: 1fr;
+  }
+
+  #condoForm .form-grid label:nth-child(2),
+  #condoForm .form-grid label:nth-child(3),
+  #condoForm .form-grid label:nth-child(4),
+  #condoForm .form-grid label:nth-child(5),
+  #condoForm .route-coordinate-fields label:nth-child(1) {
+    grid-column: auto;
   }
 
   .google-map-block a {
