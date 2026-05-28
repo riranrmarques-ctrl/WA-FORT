@@ -138,6 +138,7 @@
     let preciseMap = null;
     let preciseMapMarkers = [];
     let preciseMapLines = [];
+    let editorMapCenter = null;
 
     function svg(tag, attrs = {}) {
       const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
@@ -1433,10 +1434,12 @@
       const routeLats = routePoints.map((item) => Number(normalizeCoordinate(item.lat))).filter(Number.isFinite);
       const routeLngs = routePoints.map((item) => Number(normalizeCoordinate(item.lng))).filter(Number.isFinite);
       const centerLat =
+        Number(normalizeCoordinate(editorMapCenter?.lat)) ||
         Number(normalizeCoordinate(googleAreaLat?.value)) ||
         Number(normalizeCoordinate(activeCondo()?.googleAreaLat)) ||
         (routeLats.length ? routeLats.reduce((sum, value) => sum + value, 0) / routeLats.length : lat);
       const centerLng =
+        Number(normalizeCoordinate(editorMapCenter?.lng)) ||
         Number(normalizeCoordinate(googleAreaLng?.value)) ||
         Number(normalizeCoordinate(activeCondo()?.googleAreaLng)) ||
         (routeLngs.length ? routeLngs.reduce((sum, value) => sum + value, 0) / routeLngs.length : lng);
@@ -1803,13 +1806,17 @@
       const hasCoordinates = lat && lng;
       if (!hasCoordinates && !addressQuery) {
         googleMapFrame.removeAttribute("src");
+        editorMapCenter = null;
         if (googleMapLink) googleMapLink.href = "https://www.google.com/maps";
         renderCondoRoutePreview();
         return;
       }
+      editorMapCenter = hasCoordinates ? { lat, lng } : null;
       const query = hasCoordinates ? `${lat},${lng}` : addressQuery;
       const encoded = encodeURIComponent(query);
-      googleMapFrame.src = `https://www.google.com/maps?q=${encoded}&t=${mapType}&z=${zoom}&output=embed`;
+      googleMapFrame.src = hasCoordinates
+        ? `https://www.google.com/maps?ll=${lat},${lng}&t=${mapType}&z=${zoom}&output=embed`
+        : `https://www.google.com/maps?q=${encoded}&t=${mapType}&z=${zoom}&output=embed`;
       if (googleMapLink) {
         googleMapLink.href = hasCoordinates
           ? `https://www.google.com/maps/@${lat},${lng},${zoom}z/data=!3m1!1e3`
@@ -1824,8 +1831,8 @@
       if (!lat || !lng) return;
       const zoom = formValue("googleMapZoom") || activeCondo()?.googleMapZoom || "19";
       const mapType = formValue("googleMapType") || activeCondo()?.googleMapType || "k";
-      const encoded = encodeURIComponent(`${lat},${lng}`);
-      googleMapFrame.src = `https://www.google.com/maps?q=${encoded}&t=${mapType}&z=${zoom}&output=embed`;
+      editorMapCenter = { lat, lng };
+      googleMapFrame.src = `https://www.google.com/maps?ll=${lat},${lng}&t=${mapType}&z=${zoom}&output=embed`;
       if (googleMapLink) googleMapLink.href = `https://www.google.com/maps/@${lat},${lng},${zoom}z/data=!3m1!1e3`;
       renderCondoRoutePreview();
     }
