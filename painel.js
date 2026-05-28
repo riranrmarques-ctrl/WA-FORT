@@ -188,7 +188,7 @@
       if (!supabaseClient) return null;
       const { data: condos, error: condosError } = await supabaseClient.from("condominios").select("*").order("criado_em", { ascending: false });
       if (condosError) {
-        console.error("Erro ao carregar condomínios no Supabase:", condosError);
+        console.error("Erro ao carregar condomÃ­nios no Supabase:", condosError);
         return null;
       }
 
@@ -197,8 +197,8 @@
         supabaseClient.from("pontos_rota").select("*").order("ordem", { ascending: true }),
       ]);
 
-      if (routesError) console.warn("Rotas não carregadas do Supabase:", routesError);
-      if (pointsError) console.warn("Pontos de rota não carregados do Supabase:", pointsError);
+      if (routesError) console.warn("Rotas nÃ£o carregadas do Supabase:", routesError);
+      if (pointsError) console.warn("Pontos de rota nÃ£o carregados do Supabase:", pointsError);
 
       return (condos || []).map((condo) => {
         const condoRoutes = (routes || []).filter((route) => route.condominio_id === condo.id);
@@ -245,7 +245,7 @@
       const routeSegments = normalizeRouteSegments(condo.patrolRouteSegments, condo.patrolRouteGeo);
       return {
         id: condo.id || `condo-${Date.now()}`,
-        name: condo.name || "Condomínio sem nome",
+        name: condo.name || "CondomÃ­nio sem nome",
         deviceLinked: typeof condo.deviceLinked === "boolean" ? condo.deviceLinked : condo.status === "Online",
         address: condo.address || "",
         city: condo.city || "",
@@ -325,7 +325,7 @@
       if (!Array.isArray(segments) || !segments.length) return [];
       return segments.flatMap((segment, index) => {
         const start = {
-          name: `${segment.name || `Rota ${index + 1}`} início`,
+          name: `${segment.name || `Rota ${index + 1}`} inÃ­cio`,
           lat: segment.startLat,
           lng: segment.startLng,
         };
@@ -363,8 +363,8 @@
 
       const { data, error } = await supabaseClient.from("condominios").upsert(row).select().single();
       if (error) {
-        console.error("Erro ao salvar condomínio no Supabase:", error);
-        alert("Não consegui salvar o condomínio no Supabase. Confira RLS e colunas da tabela condominios.");
+        console.error("Erro ao salvar condomÃ­nio no Supabase:", error);
+        alert("NÃ£o consegui salvar o condomÃ­nio no Supabase. Confira RLS e colunas da tabela condominios.");
         return false;
       }
       if (data?.id) payload.id = data.id;
@@ -413,7 +413,7 @@
         segment.id = route.id;
         segment.routeId = route.id;
         const points = [
-          { rota_id: route.id, ordem: 1, nome: "Início", latitude: normalizeCoordinate(segment.startLat), longitude: normalizeCoordinate(segment.startLng) },
+          { rota_id: route.id, ordem: 1, nome: "InÃ­cio", latitude: normalizeCoordinate(segment.startLat), longitude: normalizeCoordinate(segment.startLng) },
           { rota_id: route.id, ordem: 2, nome: "Fim", latitude: normalizeCoordinate(segment.endLat), longitude: normalizeCoordinate(segment.endLng) },
         ];
         const { error: pointsError } = await supabaseClient.from("pontos_rota").insert(points);
@@ -436,7 +436,7 @@
         code: device.code || device.codigo_app || generateGuardCode(),
         condoId: device.condoId || device.condominio_id || "",
         type: device.type || device.tipo || "Ronda",
-        status: device.status || "Aguardando sincronização",
+        status: device.status || "Aguardando sincronizaÃ§Ã£o",
         currentGuardId: device.currentGuardId || device.vigilante_atual_id || "",
         battery: Number.isFinite(Number(device.battery ?? device.bateria)) ? Number(device.battery ?? device.bateria) : "",
         lastSync: device.lastSync || device.ultima_sincronizacao || "",
@@ -463,7 +463,7 @@
       if (!supabaseClient) return null;
       const { data, error } = await supabaseClient.from("dispositivos").select("*").order("criado_em", { ascending: false });
       if (error) {
-        console.warn("Dispositivos não carregados do Supabase:", error);
+        console.warn("Dispositivos nÃ£o carregados do Supabase:", error);
         return null;
       }
       return (data || []).map(normalizeDevice);
@@ -486,7 +486,7 @@
       const { data, error } = await supabaseClient.from("dispositivos").upsert(row).select().single();
       if (error) {
         console.error("Erro ao salvar dispositivo no Supabase:", error);
-        console.warn("Dispositivo será mantido localmente até o Supabase aceitar a tabela/policies.");
+        console.warn("Dispositivo serÃ¡ mantido localmente atÃ© o Supabase aceitar a tabela/policies.");
         return true;
       }
       if (data?.id) device.id = data.id;
@@ -505,7 +505,7 @@
         routeId: guard.routeId || "",
         routeIndex: Number.isFinite(routeIndex) ? routeIndex : 0,
         shift: guard.shift || "06:00 - 18:00",
-        status: guard.status || "Aguardando sincronização",
+        status: guard.status || "Aguardando sincronizaÃ§Ã£o",
         progress: Number.isFinite(progress) ? Math.max(0, Math.min(100, progress)) : 0,
         color: guard.color || colors.green,
         routeOffset: Number.isFinite(Number(guard.routeOffset)) ? Number(guard.routeOffset) : 0,
@@ -544,7 +544,7 @@
           condoId,
           deviceId: row.dispositivo_id || "",
           shift: row.turno || "06:00 - 18:00",
-          status: row.status || "Aguardando sincronização",
+          status: row.status || "Aguardando sincronizaÃ§Ã£o",
         }, index);
       });
     }
@@ -601,7 +601,7 @@
 
     function listenFirebaseLiveGuards() {
       if (!window.realtimeDb || !window.firebaseRef || !window.firebaseOnValue) {
-        console.warn("Firebase Realtime ainda não carregado");
+        console.warn("Firebase Realtime ainda nÃ£o carregado");
         return;
       }
 
@@ -637,10 +637,10 @@
       const key = googleMapsApiKey.value.trim();
       if (key) {
         localStorage.setItem(googleMapsApiKeyStorageKey, key);
-        googleMapsApiStatus.textContent = "Chave salva. O painel tentará usar o modo preciso.";
+        googleMapsApiStatus.textContent = "Chave salva. O painel tentarÃ¡ usar o modo preciso.";
       } else {
         localStorage.removeItem(googleMapsApiKeyStorageKey);
-        googleMapsApiStatus.textContent = "Sem chave: o painel usa prévia visual aproximada.";
+        googleMapsApiStatus.textContent = "Sem chave: o painel usa prÃ©via visual aproximada.";
       }
       googleMapsApiPromise = null;
       preciseMap = null;
@@ -678,7 +678,7 @@
       const hasApi = await loadGoogleMapsApi();
       if (!hasApi || !lat || !lng) {
         mapCanvas.classList.remove("precise");
-        if (currentGoogleMapsApiKey()) googleMapsApiStatus.textContent = "Não foi possível carregar a API. Confira a chave e o domínio liberado.";
+        if (currentGoogleMapsApiKey()) googleMapsApiStatus.textContent = "NÃ£o foi possÃ­vel carregar a API. Confira a chave e o domÃ­nio liberado.";
         return;
       }
 
@@ -741,7 +741,7 @@
         empty.innerHTML = `
           <div class="condo-photo"></div>
           <div>
-            <strong>Nenhum condomínio cadastrado</strong>
+            <strong>Nenhum condomÃ­nio cadastrado</strong>
             <small>Crie o primeiro cadastro para liberar o mapa</small>
           </div>
         `;
@@ -789,7 +789,7 @@
       if (!filtered.length) {
         const empty = document.createElement("div");
         empty.className = "admin-condo-card";
-        empty.innerHTML = "<div><strong>Nenhum condomínio encontrado</strong><small>Altere a busca ou crie um novo cadastro.</small></div>";
+        empty.innerHTML = "<div><strong>Nenhum condomÃ­nio encontrado</strong><small>Altere a busca ou crie um novo cadastro.</small></div>";
         adminCondoList.appendChild(empty);
         return;
       }
@@ -798,7 +798,7 @@
         const card = document.createElement("article");
         card.className = `admin-condo-card${condo.id === selectedCondoId ? " active" : ""}`;
         card.dataset.status = condo.deviceLinked ? "Com dispositivo" : "Sem dispositivo";
-        const imageMarkup = condo.image ? `<img src="${condo.image}" alt="${condo.name}" />` : "◇";
+        const imageMarkup = condo.image ? `<img src="${condo.image}" alt="${condo.name}" />` : "â—‡";
         card.innerHTML = `
           <div class="admin-condo-thumb">${imageMarkup}</div>
           <div>
@@ -827,7 +827,7 @@
       if (!guardCondo) return;
       guardCondo.replaceChildren();
       if (!condominiums.length) {
-        guardCondo.appendChild(new Option("Nenhum condomínio cadastrado", ""));
+        guardCondo.appendChild(new Option("Nenhum condomÃ­nio cadastrado", ""));
         return;
       }
       condominiums.forEach((condo) => {
@@ -846,7 +846,7 @@
       }
       guardDevice.disabled = false;
       condoDevices.forEach((device) => {
-        guardDevice.appendChild(new Option(`${device.name} · ${device.code}`, device.id));
+        guardDevice.appendChild(new Option(`${device.name} Â· ${device.code}`, device.id));
       });
     }
 
@@ -867,7 +867,7 @@
       populateGuardDeviceOptions(defaultCondoId);
       document.getElementById("guardFormTitle").textContent = selected ? "Editar Vigilante" : "Novo Vigilante";
       document.getElementById("guardFormSubtitle").textContent = selected
-        ? `${selected.name} · ${deviceLabel(selected.deviceId)}`
+        ? `${selected.name} Â· ${deviceLabel(selected.deviceId)}`
         : "Preencha os dados do vigilante e selecione o dispositivo assumido no turno.";
       guardName.value = selected?.name || "";
       guardPhone.value = selected?.phone || "";
@@ -875,7 +875,7 @@
       populateGuardDeviceOptions(defaultCondoId);
       guardDevice.value = selected?.deviceId || "";
       guardShift.value = selected?.shift || "06:00 - 18:00";
-      guardStatus.value = selected?.status || "Aguardando sincronização";
+      guardStatus.value = selected?.status || "Aguardando sincronizaÃ§Ã£o";
       deleteGuardButton.disabled = !selected;
     }
 
@@ -888,7 +888,7 @@
 
     function deviceLabel(deviceId) {
       const device = devices.find((item) => item.id === deviceId);
-      return device ? `${device.name} · ${device.code}` : "Sem dispositivo";
+      return device ? `${device.name} Â· ${device.code}` : "Sem dispositivo";
     }
 
     function renderGuards() {
@@ -926,7 +926,7 @@
             <strong>${guard.name}</strong>
             <span>${guard.status}</span>
             <small>${deviceLabel(guard.deviceId)}</small>
-            <small>${condo?.name || "Sem condomínio"}</small>
+            <small>${condo?.name || "Sem condomÃ­nio"}</small>
             <small>Turno ${guard.shift}</small>
           </div>
         `;
@@ -957,7 +957,7 @@
       if (!condoDevices.length) {
         const empty = document.createElement("div");
         empty.className = "device-item empty";
-        empty.textContent = "Nenhum dispositivo cadastrado neste condomínio.";
+        empty.textContent = "Nenhum dispositivo cadastrado neste condomÃ­nio.";
         deviceList.appendChild(empty);
         return;
       }
@@ -968,8 +968,8 @@
         item.innerHTML = `
           <strong>${device.name}</strong>
           <span>${device.code}</span>
-          <small>${device.type} · ${device.status}</small>
-          <small>${guard?.name || "Sem vigilante"} · Bateria ${device.battery === "" ? "--" : `${device.battery}%`}</small>
+          <small>${device.type} Â· ${device.status}</small>
+          <small>${guard?.name || "Sem vigilante"} Â· Bateria ${device.battery === "" ? "--" : `${device.battery}%`}</small>
         `;
         deviceList.appendChild(item);
       });
@@ -983,7 +983,7 @@
         code: deviceCode.value.trim() || generateGuardCode(),
         condoId: condo.id,
         type: deviceType.value || "Ronda",
-        status: deviceStatus.value || "Aguardando sincronização",
+        status: deviceStatus.value || "Aguardando sincronizaÃ§Ã£o",
         currentGuardId: deviceGuard.value || "",
         battery: deviceBattery.value.trim(),
         lastSync: deviceLastSync.value.trim(),
@@ -1004,7 +1004,7 @@
       deviceName.value = "";
       deviceCode.value = generateGuardCode();
       deviceType.value = "Ronda";
-      deviceStatus.value = "Aguardando sincronização";
+      deviceStatus.value = "Aguardando sincronizaÃ§Ã£o";
       deviceGuard.value = "";
       deviceBattery.value = "";
       deviceLastSync.value = "";
@@ -1076,7 +1076,7 @@
         const { error } = await supabaseClient.from("vigilantes").delete().eq("id", selectedGuardId);
         if (error) {
           console.error("Erro ao excluir vigilante no Supabase:", error);
-          alert("Não consegui excluir o vigilante no Supabase.");
+          alert("NÃ£o consegui excluir o vigilante no Supabase.");
           return;
         }
       }
@@ -1249,13 +1249,13 @@
       });
       const statusInfo = liveDevice ? getDeviceStatus(liveDevice, segment) : null;
       detailRouteNumber.textContent = String(source.indexOf(segment) + 1).padStart(2, "0");
-      detailGuardName.textContent = liveDevice?.nome_dispositivo || liveDevice?.dispositivo_id || "Dispositivo não definido";
-      detailGuardStatus.textContent = statusInfo ? `${statusInfo.status} — ${statusInfo.label}` : "Aguardando dispositivo";
+      detailGuardName.textContent = liveDevice?.nome_dispositivo || liveDevice?.dispositivo_id || "Dispositivo nÃ£o definido";
+      detailGuardStatus.textContent = statusInfo ? `${statusInfo.status} â€” ${statusInfo.label}` : "Aguardando dispositivo";
       detailRouteName.textContent = `Rota: ${segment.name || `Rota ${source.indexOf(segment) + 1}`}`;
-      detailRoutePath.textContent = `${segment.startLat}, ${segment.startLng} até ${segment.endLat}, ${segment.endLng}`;
+      detailRoutePath.textContent = `${segment.startLat}, ${segment.startLng} atÃ© ${segment.endLat}, ${segment.endLng}`;
       detailProgressText.textContent = `${progress}%`;
       detailProgressBar.style.width = `${progress}%`;
-      detailNextPoint.textContent = liveDevice?.etapa ? `${segment.name || "Rota"} · ${liveDevice.etapa}` : segment.name || "Fim da rota";
+      detailNextPoint.textContent = liveDevice?.etapa ? `${segment.name || "Rota"} Â· ${liveDevice.etapa}` : segment.name || "Fim da rota";
       detailEta.textContent = formatDuration(Number(liveDevice?.tempo_rota_segundos) || 0) || "--:--";
     }
 
@@ -1278,13 +1278,13 @@
       const movedAt = new Date(device.ultima_movimentacao || device.ultima_atualizacao || Date.now());
       const now = Date.now();
       const inactive = Number.isNaN(updatedAt.getTime()) || now - updatedAt.getTime() > 120000;
-      if (inactive) return { status: "Dispositivo inativo", label: `Último sinal às ${formatClock(updatedAt)}` };
+      if (inactive) return { status: "Dispositivo inativo", label: `Ãšltimo sinal Ã s ${formatClock(updatedAt)}` };
       const speed = Number(device.velocidade || 0);
       const position = { lat: device.latitude, lng: device.longitude };
       const distance = route ? nearestRouteDistanceMeters(position, routeSegmentsToPoints([route])) : 0;
-      if (speed > 0.5 && distance > 35) return { status: "Desvio de rota", label: `Detectado às ${formatClock(device.status_horario || Date.now())}` };
+      if (speed > 0.5 && distance > 35) return { status: "Desvio de rota", label: `Detectado Ã s ${formatClock(device.status_horario || Date.now())}` };
       if (now - movedAt.getTime() > 300000) return { status: "Fora da patrulha", label: `Sem movimento desde ${formatClock(movedAt)}` };
-      return { status: "Patrulhando", label: `Atualizado às ${formatClock(updatedAt)}` };
+      return { status: "Patrulhando", label: `Atualizado Ã s ${formatClock(updatedAt)}` };
     }
 
     function startRouteEditing() {
@@ -1296,6 +1296,16 @@
       editRouteButton.textContent = routeEditing ? "Editando..." : "Editar rota";
       renderRoutePointList();
       renderMap();
+    }
+
+    function ensureRouteEditing() {
+      if (routeEditing) return;
+      const condo = activeCondo();
+      routeEditing = true;
+      draftRoute = condo?.patrolRouteSegments?.length ? condo.patrolRouteSegments.map((segment) => ({ ...segment })) : [];
+      mapCanvas.classList.add("editing");
+      editRouteButton.classList.add("active");
+      editRouteButton.textContent = "Editando...";
     }
 
     async function saveRoute() {
@@ -1329,7 +1339,7 @@
 
     function addRoutePoint(event) {
       event.preventDefault();
-      if (!routeEditing) startRouteEditing();
+      ensureRouteEditing();
       const startLat = normalizeCoordinate(routeStartLat.value);
       const startLng = normalizeCoordinate(routeStartLng.value);
       const endLat = normalizeCoordinate(routeEndLat.value);
@@ -1373,13 +1383,23 @@
         item.className = "route-point-item";
         item.innerHTML = `
           <b>${String(index + 1).padStart(2, "0")}</b>
-          <span>${segment.name || `Rota ${index + 1}`} · Início ${segment.startLat}, ${segment.startLng} · Fim ${segment.endLat}, ${segment.endLng}</span>
-          <button type="button" data-focus-route="${index}" data-route-edge="start" title="Ver início no Google">Início</button>
+          <span>${segment.name || `Rota ${index + 1}`} Â· InÃ­cio ${segment.startLat}, ${segment.startLng} Â· Fim ${segment.endLat}, ${segment.endLng}</span>
+          <button type="button" data-focus-route="${index}" data-route-edge="start" title="Ver inÃ­cio no Google">InÃ­cio</button>
           <button type="button" data-focus-route="${index}" data-route-edge="end" title="Ver fim no Google">Fim</button>
+          <button class="route-delete-button" type="button" data-delete-route="${index}" title="Excluir rota">Ã—</button>
         `;
         routePointList.appendChild(item);
       });
       renderCondoRoutePreview();
+    }
+
+    function deleteRouteAt(index) {
+      ensureRouteEditing();
+      if (index < 0 || index >= draftRoute.length) return;
+      draftRoute.splice(index, 1);
+      selectedRouteIndex = Math.max(0, Math.min(selectedRouteIndex, draftRoute.length - 1));
+      renderRoutePointList();
+      renderMap();
     }
 
     function renderCondoRoutePreview() {
@@ -1570,7 +1590,7 @@
         lastOverviewMapSrc = "";
         mapCanvas.classList.remove("precise");
         clearPreciseMapOverlays();
-        overviewCondoName.textContent = "Nenhum condomínio cadastrado";
+        overviewCondoName.textContent = "Nenhum condomÃ­nio cadastrado";
         return;
       }
       const zoom = condo.googleMapZoom || "18";
@@ -1587,7 +1607,7 @@
         overviewGoogleMapFrame.src = nextSrc;
         lastOverviewMapSrc = nextSrc;
       }
-      overviewCondoName.textContent = condo.name || "Condomínio";
+      overviewCondoName.textContent = condo.name || "CondomÃ­nio";
       renderPreciseOverviewMap(condo);
     }
 
@@ -1595,13 +1615,13 @@
       activeTable.replaceChildren();
       const header = document.createElement("div");
       header.className = "table-row header";
-      header.innerHTML = "<span>Hora início</span><span>Rota</span><span>Dispositivo</span><span>Vigilante</span><span>Ida</span><span>Volta</span><span>Total</span><span>Status</span>";
+      header.innerHTML = "<span>Hora inÃ­cio</span><span>Rota</span><span>Dispositivo</span><span>Vigilante</span><span>Ida</span><span>Volta</span><span>Total</span><span>Status</span>";
       activeTable.appendChild(header);
 
       if (!completedRoutes.length) {
         const empty = document.createElement("div");
         empty.className = "table-row empty";
-        empty.innerHTML = "<span>Nenhuma rota concluída hoje</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span>";
+        empty.innerHTML = "<span>Nenhuma rota concluÃ­da hoje</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span>";
         activeTable.appendChild(empty);
         return;
       }
@@ -1617,7 +1637,7 @@
           <span>${route.outbound || "-"}</span>
           <span>${route.returned || "-"}</span>
           <span>${route.duration || "-"}</span>
-          <span class="table-status">${route.status || "Concluída"}</span>
+          <span class="table-status">${route.status || "ConcluÃ­da"}</span>
         `;
         activeTable.appendChild(row);
       });
@@ -1635,7 +1655,7 @@
       checkpointHistory.forEach((point) => {
         const item = document.createElement("div");
         item.className = `checkpoint-item${point.done ? " done" : ""}`;
-        item.innerHTML = `<i>${point.done ? "✓" : ""}</i><span>${point.name}</span><time>${point.time}</time>`;
+        item.innerHTML = `<i>${point.done ? "âœ“" : ""}</i><span>${point.name}</span><time>${point.time}</time>`;
         checkpointHistoryEl.appendChild(item);
       });
     }
@@ -1666,7 +1686,7 @@
     function fillForm(condo) {
       const selected = condo || activeCondo();
       if (!selected) return;
-      document.getElementById("formTitle").textContent = "Editar Condomínio";
+      document.getElementById("formTitle").textContent = "Editar CondomÃ­nio";
       document.getElementById("formSubtitle").textContent = selected.name;
       document.getElementById("condoName").value = selected.name || "";
       document.getElementById("condoAddress").value = selected.address || "";
@@ -1694,8 +1714,8 @@
     function clearForm() {
       selectedCondoId = null;
       condoForm.reset();
-      document.getElementById("formTitle").textContent = "Novo Condomínio";
-      document.getElementById("formSubtitle").textContent = "Preencha os dados principais e adicione a imagem do condomínio.";
+      document.getElementById("formTitle").textContent = "Novo CondomÃ­nio";
+      document.getElementById("formSubtitle").textContent = "Defina o nome, a imagem, os dispositivos e as rotas do condomÃ­nio.";
       currentImage = "";
       routeEditing = false;
       draftRoute = [];
@@ -1766,8 +1786,8 @@
       if (supabaseClient && isUuid(selectedCondoId)) {
         const { error } = await supabaseClient.from("condominios").delete().eq("id", selectedCondoId);
         if (error) {
-          console.error("Erro ao excluir condomínio no Supabase:", error);
-          alert("Não consegui excluir o condomínio no Supabase.");
+          console.error("Erro ao excluir condomÃ­nio no Supabase:", error);
+          alert("NÃ£o consegui excluir o condomÃ­nio no Supabase.");
           return;
         }
       }
@@ -1785,7 +1805,7 @@
         imagePreview.innerHTML = "<span>Sem imagem cadastrada</span>";
         return;
       }
-      imagePreview.innerHTML = `<img src="${currentImage}" alt="Imagem do condomínio" />`;
+      imagePreview.innerHTML = `<img src="${currentImage}" alt="Imagem do condomÃ­nio" />`;
     }
 
     function updateGoogleMap(condo) {
