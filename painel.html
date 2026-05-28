@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Safeway Monitoramento</title>
-    <link rel="stylesheet" href="painel.css?v=44" />
+    <link rel="stylesheet" href="painel.css?v=45" />
   </head>
   <body>
     <div class="app-shell">
@@ -301,100 +301,102 @@
                   </div>
                 </div>
 
-                <div class="device-setup-block">
-                  <div class="route-setup-heading">
-                    <div>
-                      <h3>Dispositivos do condomínio</h3>
-                      <p>Cadastre os aparelhos que serão rastreados. O código SAFE pertence ao dispositivo, não ao vigilante.</p>
+                <div class="setup-grid">
+                  <div class="device-setup-block">
+                    <div class="route-setup-heading">
+                      <div>
+                        <h3>Dispositivos do condomínio</h3>
+                        <p>Cadastre os aparelhos que serão rastreados. O código SAFE pertence ao dispositivo, não ao vigilante.</p>
+                      </div>
+                      <button type="button" id="addDeviceButton">Adicionar dispositivo</button>
                     </div>
-                    <button type="button" id="addDeviceButton">Adicionar dispositivo</button>
+
+                    <div class="device-fields">
+                      <label>
+                        Nome do dispositivo
+                        <input id="deviceName" placeholder="Moto Ronda" />
+                      </label>
+                      <label>
+                        Código do app
+                        <input id="deviceCode" readonly placeholder="SAFE-0000" />
+                      </label>
+                      <label>
+                        Tipo
+                        <select id="deviceType">
+                          <option value="Ronda">Ronda</option>
+                          <option value="Portaria">Portaria</option>
+                          <option value="Reserva">Reserva</option>
+                        </select>
+                      </label>
+                      <label>
+                        Status
+                        <select id="deviceStatus">
+                          <option value="Aguardando sincronização">Aguardando sincronização</option>
+                          <option value="Patrulhando">Patrulhando</option>
+                          <option value="Fora da patrulha">Fora da patrulha</option>
+                          <option value="Desvio de rota">Desvio de rota</option>
+                          <option value="Dispositivo inativo">Dispositivo inativo</option>
+                        </select>
+                      </label>
+                      <label>
+                        Vigilante atual
+                        <select id="deviceGuard"></select>
+                      </label>
+                      <label>
+                        Bateria
+                        <input id="deviceBattery" inputmode="numeric" placeholder="82" />
+                      </label>
+                      <label>
+                        Última sincronização
+                        <input id="deviceLastSync" placeholder="Automático" />
+                      </label>
+                      <label class="checkbox-field">
+                        <input id="deviceActive" type="checkbox" checked />
+                        Ativo
+                      </label>
+                    </div>
+                    <div class="device-list" id="deviceList"></div>
                   </div>
 
-                  <div class="device-fields">
-                    <label>
-                      Nome do dispositivo
-                      <input id="deviceName" placeholder="Moto Ronda" />
-                    </label>
-                    <label>
-                      Código do app
-                      <input id="deviceCode" readonly placeholder="SAFE-0000" />
-                    </label>
-                    <label>
-                      Tipo
-                      <select id="deviceType">
-                        <option value="Ronda">Ronda</option>
-                        <option value="Portaria">Portaria</option>
-                        <option value="Reserva">Reserva</option>
-                      </select>
-                    </label>
-                    <label>
-                      Status
-                      <select id="deviceStatus">
-                        <option value="Aguardando sincronização">Aguardando sincronização</option>
-                        <option value="Patrulhando">Patrulhando</option>
-                        <option value="Fora da patrulha">Fora da patrulha</option>
-                        <option value="Desvio de rota">Desvio de rota</option>
-                        <option value="Dispositivo inativo">Dispositivo inativo</option>
-                      </select>
-                    </label>
-                    <label>
-                      Vigilante atual
-                      <select id="deviceGuard"></select>
-                    </label>
-                    <label>
-                      Bateria
-                      <input id="deviceBattery" inputmode="numeric" placeholder="82" />
-                    </label>
-                    <label>
-                      Última sincronização
-                      <input id="deviceLastSync" placeholder="Automático" />
-                    </label>
-                    <label class="checkbox-field">
-                      <input id="deviceActive" type="checkbox" checked />
-                      Ativo
-                    </label>
-                  </div>
-                  <div class="device-list" id="deviceList"></div>
-                </div>
+                  <div class="route-setup-block">
+                    <div class="route-setup-heading">
+                      <div>
+                        <h3>Rota de ronda por coordenadas</h3>
+                        <p>Cadastre cada trecho da ronda informando a coordenada inicial e a coordenada final. A visão geral desenha a rota completa a partir desses trechos.</p>
+                      </div>
+                      <div class="route-actions">
+                        <button type="button" id="editRouteButton">Editar rota</button>
+                        <button type="button" id="saveRouteButton">Salvar rota</button>
+                        <button type="button" id="clearRouteButton">Limpar</button>
+                      </div>
+                    </div>
 
-                <div class="route-setup-block">
-                  <div class="route-setup-heading">
-                    <div>
-                      <h3>Rota de ronda por coordenadas</h3>
-                      <p>Cadastre cada trecho da ronda informando a coordenada inicial e a coordenada final. A visão geral desenha a rota completa a partir desses trechos.</p>
+                    <div class="route-coordinate-panel active" id="routeCoordinatePanel">
+                      <div class="route-coordinate-fields">
+                        <label>
+                          Nome da rota
+                          <input id="routePointName" placeholder="Rota 1, Portaria ao Bloco A..." />
+                        </label>
+                        <label>
+                          Latitude inicial
+                          <input id="routeStartLat" inputmode="decimal" placeholder="-15.022387" />
+                        </label>
+                        <label>
+                          Longitude inicial
+                          <input id="routeStartLng" inputmode="decimal" placeholder="-38.997905" />
+                        </label>
+                        <label>
+                          Latitude final
+                          <input id="routeEndLat" inputmode="decimal" placeholder="-15.022900" />
+                        </label>
+                        <label>
+                          Longitude final
+                          <input id="routeEndLng" inputmode="decimal" placeholder="-38.997500" />
+                        </label>
+                        <button type="button" id="addCoordinatePointButton">Adicionar rota</button>
+                      </div>
+                      <div class="route-point-list" id="routePointList"></div>
                     </div>
-                    <div class="route-actions">
-                      <button type="button" id="editRouteButton">Editar rota</button>
-                      <button type="button" id="saveRouteButton">Salvar rota</button>
-                      <button type="button" id="clearRouteButton">Limpar</button>
-                    </div>
-                  </div>
-
-                  <div class="route-coordinate-panel active" id="routeCoordinatePanel">
-                    <div class="route-coordinate-fields">
-                      <label>
-                        Nome da rota
-                        <input id="routePointName" placeholder="Rota 1, Portaria ao Bloco A..." />
-                      </label>
-                      <label>
-                        Latitude inicial
-                        <input id="routeStartLat" inputmode="decimal" placeholder="-15.022387" />
-                      </label>
-                      <label>
-                        Longitude inicial
-                        <input id="routeStartLng" inputmode="decimal" placeholder="-38.997905" />
-                      </label>
-                      <label>
-                        Latitude final
-                        <input id="routeEndLat" inputmode="decimal" placeholder="-15.022900" />
-                      </label>
-                      <label>
-                        Longitude final
-                        <input id="routeEndLng" inputmode="decimal" placeholder="-38.997500" />
-                      </label>
-                      <button type="button" id="addCoordinatePointButton">Adicionar rota</button>
-                    </div>
-                    <div class="route-point-list" id="routePointList"></div>
                   </div>
                 </div>
 
@@ -492,6 +494,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="painel.js?v=44"></script>
+    <script src="painel.js?v=45"></script>
   </body>
 </html>
